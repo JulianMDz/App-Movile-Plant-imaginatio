@@ -1,12 +1,19 @@
 from fastapi import FastAPI
-from routers import auth, plants
+from routers import plants, minigame, resources
 
-app =  FastAPI(title="Plant Backend API", description="API for Plamt Backend", version="1.0.0")
+app = FastAPI(
+    title="Imaginatio Plant Backend",
+    description="Motor lógico para el cuidado de plantas virtuales",
+    version="2.0.0"
+)
 
-app.include_router(auth.router)
 app.include_router(plants.router)
+app.include_router(minigame.router)
+app.include_router(resources.router)
 
 @app.get("/")
 def root():
-    return{"satatus": "ok", "message":"Plant API running " }
-
+    return {
+        "status": "ok",
+        "message": "Imaginatio Plant Backend v2.0.0"
+    }
