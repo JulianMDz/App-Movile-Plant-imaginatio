@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from schemas.plant import PlantState, PlantStage, PlantType
 
 # Constantes
@@ -45,8 +45,13 @@ def update_passive_state(plant: PlantState) -> PlantState:
     if plant.is_dead or plant.stage == PlantStage.ENT:
         return plant
 
-    now = datetime.now()
-    hours_passed = (now - plant.last_interaction).total_seconds() / 3600.0
+    now = datetime.now(timezone.utc)
+
+    last = plant.last_interaction
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+
+    hours_passed = (now - last).total_seconds() / 3600.0
 
     # Muerte por inactividad
     if hours_passed >= DEATH_HOURS_THRESHOLD:
@@ -70,7 +75,7 @@ def apply_water(plant: PlantState) -> PlantState:
         return plant
     plant.water += 20
     plant.health = min(MAX_HEALTH, plant.health + 5)
-    plant.last_interaction = datetime.now()
+    plant.last_interaction = datetime.now(timezone.utc)
     return plant
 
 def apply_sun(plant: PlantState) -> PlantState:
@@ -79,7 +84,7 @@ def apply_sun(plant: PlantState) -> PlantState:
         return plant
     plant.sun += 20
     plant.health = min(MAX_HEALTH, plant.health + 5)
-    plant.last_interaction = datetime.now()
+    plant.last_interaction = datetime.now(timezone.utc)
     return plant
 
 def apply_fertilizer(plant: PlantState, amount: int) -> PlantState:
@@ -88,7 +93,7 @@ def apply_fertilizer(plant: PlantState, amount: int) -> PlantState:
         return plant
     plant.fertilizer += amount
     plant.health = min(MAX_HEALTH, plant.health + 20)
-    plant.last_interaction = datetime.now()
+    plant.last_interaction = datetime.now(timezone.utc)
     return plant
 
 def check_evolution(plant: PlantState) -> tuple[PlantState, bool]:

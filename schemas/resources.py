@@ -10,6 +10,7 @@ class UserResources(BaseModel):
     sun_amount: int = 0
     water_amount: int = 0
     fertilizer_amount: int = 0
+    compost_amount: int = 0
 
 class ResourceUseRequest(BaseModel):
     user_resources: UserResources
