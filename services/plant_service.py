@@ -24,6 +24,9 @@ STAGE_REQUIREMENTS = {
     (PlantType.hidro,    PlantStage.SEED): {"sun": 2,  "water": 6},
     (PlantType.hidro,    PlantStage.BUSH): {"sun": 4,  "water": 8},
     (PlantType.hidro,    PlantStage.TREE): {"sun": 6,  "water": 10},
+    (PlantType.pasto, PlantStage.SEED): {"sun": 3, "water": 3},
+    (PlantType.pasto, PlantStage.BUSH): {"sun": 5, "water": 5},
+    (PlantType.pasto, PlantStage.TREE): {"sun": 7, "water": 7},
 }
 
 # Abono necesario por stage (igual para todos los tipos)

@@ -1,29 +1,34 @@
-from pydantic import BaseModel, EmailStr
-from schemas.plant import PlantResponse
+from pydantic import BaseModel
+from schemas.resources import UserResources
 
-#Registro de usuaruio
-class UserCreate(BaseModel):
+class PlantSummary(BaseModel):
+    plant_id: str
+    plant_name: str
+    plant_type: str
+    stage: str
+    is_ent: bool
+
+class UserRegisterRequest(BaseModel):
     username: str
-    email: EmailStr
-    password: str
 
-# login de usuario
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-#respuesta del servidor 
-class UserRespose(BaseModel):
-    id: int
+class UserRegisterResponse(BaseModel):
+    user_id: str
     username: str
-    email: EmailStr
-    plants: list[PlantResponse] = []
+    unlocked_plants: list[str]
+    message: str
 
-    class config:
-        from_atributes = True
+class AddPlantRequest(BaseModel):
+    plant_type: str
 
-#toquen JWT que devuelve el Login
+class UserInventoryResponse(BaseModel):
+    user_id: str
+    username: str
+    plants: list[PlantSummary]
+    has_ent: bool
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+class UserResourcesResponse(BaseModel):
+    user_id: str
+    resources: UserResources
+
+class SyncPlantsRequest(BaseModel):
+    plants: list[PlantSummary]

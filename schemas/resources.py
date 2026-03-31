@@ -12,6 +12,7 @@ class UserResources(BaseModel):
     fertilizer_amount: int = 0
     compost_amount: int = 0
 
+
 class ResourceUseRequest(BaseModel):
     user_resources: UserResources
     resource_type: ResourceType
