@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import plants, minigame, resources
+from routers import plants, minigame, resources, users
 
 app = FastAPI(
     title="Imaginatio Plant Backend",
@@ -7,10 +7,11 @@ app = FastAPI(
     version="2.0.0"
 )
 
+app.include_router(users.router)
 app.include_router(plants.router)
 app.include_router(minigame.router)
 app.include_router(resources.router)
-
+    
 @app.get("/")
 def root():
     return {

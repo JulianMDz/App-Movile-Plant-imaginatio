@@ -9,6 +9,7 @@ class PlantType(str, Enum):
     xerofito = "xerofito"
     montana = "montana"
     templado = "templado"
+    pasto = "pasto"
 
 class PlantStage(str, Enum):
     SEED = "seed"
