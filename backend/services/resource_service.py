@@ -1,6 +1,8 @@
 from fastapi import HTTPException
 from schemas.resources import UserResources, ResourceType
 
+COMPOST_TO_FERTILIZER = 10
+
 def use_resource(resources: UserResources, resource_type: ResourceType, amount: int) -> UserResources:
     
     if resource_type == ResourceType.water:
@@ -29,3 +31,4 @@ def use_resource(resources: UserResources, resource_type: ResourceType, amount: 
             )
         resources.fertilizer_amount -= amount
         return resources
+

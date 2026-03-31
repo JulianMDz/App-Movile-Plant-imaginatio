@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from schemas.resources import ResourceUseRequest, ResourceUseResponse
+from schemas.resources import ResourceUseRequest, ResourceUseResponse, UserResources
 from services.resource_service import use_resource
 
 router = APIRouter(
@@ -17,5 +17,6 @@ def use_resource_endpoint(request: ResourceUseRequest):
     return ResourceUseResponse(
         user_resources=resources,
         success=True,
-        message=f"Usaste {request.amount} {request.resource_type}"
+        message=f"Usaste {request.amount} {request.resource_type.value}"
     )
+

@@ -9,6 +9,7 @@ class PlantType(str, Enum):
     xerofito = "xerofito"
     montana = "montana"
     templado = "templado"
+    pasto = "pasto"
 
 class PlantStage(str, Enum):
     SEED = "seed"
@@ -17,23 +18,24 @@ class PlantStage(str, Enum):
     ENT = "ent"
 
 class SourcesNextState(BaseModel):
-    sun: int
-    water: int
-    fertilizer: int
+    sun: float
+    water: float
+    fertilizer: float
 
 class PlantState(BaseModel):
     plant_name: str
     plant_type: PlantType
     stage: PlantStage = PlantStage.SEED
-    health: int = 100
-    sun: int = 0
-    water: int = 0
-    fertilizer: int = 0
+    health: float = 100
+    sun: float = 0
+    water: float = 0
+    fertilizer: float = 0
     is_dead: bool = False
     last_interaction: datetime
     sources_next_state: SourcesNextState
 
 class PlantActionRequest(BaseModel):
+    user_id: str
     plant_id: str
     plant_state: PlantState
 
