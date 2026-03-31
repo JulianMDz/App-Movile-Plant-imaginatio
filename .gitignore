@@ -12,3 +12,16 @@ wheels/
 __pycache__/
 *.pyc
 *.pyo
+
+``
+# Python
+backend/.venv
+backend/__pycache__
+backend/**/__pycache__
+backend/.env
+
+# Flutter
+flutter/.dart_tool
+flutter/build
+flutter/.flutter-plugins
+flutter/.flutter-plugins-dependencies
