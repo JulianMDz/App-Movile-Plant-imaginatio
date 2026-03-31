@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from schemas.plant import PlantState, PlantStage, PlantType
+from schemas.plant import PlantState, PlantStage, PlantType, SourcesNextState
 
 # Constantes
 MAX_HEALTH = 100
@@ -72,11 +72,30 @@ def update_passive_state(plant: PlantState) -> PlantState:
 
     return plant
 
+def get_sources_next_state(plant: PlantState) -> SourcesNextState:
+    """Calcula los recursos necesarios para el siguiente stage"""
+    
+    
+    if plant.stage == PlantStage.ENT:
+        return SourcesNextState(sun=0, water=0, fertilizer=0)
+    
+    reqs = STAGE_REQUIREMENTS.get((plant.plant_type, plant.stage))
+    fert = FERTILIZER_TO_EVOLVE.get(plant.stage, 0)
+    
+    if not reqs:
+        return SourcesNextState(sun=0, water=0, fertilizer=0)
+    
+    return SourcesNextState(
+        sun=reqs["sun"],
+        water=reqs["water"],
+        fertilizer=fert
+    )
+
 def apply_water(plant: PlantState) -> PlantState:
     """Aplica agua y regenera salud"""
     if plant.is_dead or plant.stage == PlantStage.ENT:
         return plant
-    plant.water += 20
+    plant.water += 1
     plant.health = min(MAX_HEALTH, plant.health + 5)
     plant.last_interaction = datetime.now(timezone.utc)
     return plant
@@ -85,7 +104,7 @@ def apply_sun(plant: PlantState) -> PlantState:
     """Aplica sol y regenera salud"""
     if plant.is_dead or plant.stage == PlantStage.ENT:
         return plant
-    plant.sun += 20
+    plant.sun += 1
     plant.health = min(MAX_HEALTH, plant.health + 5)
     plant.last_interaction = datetime.now(timezone.utc)
     return plant

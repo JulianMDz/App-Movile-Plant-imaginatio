@@ -124,3 +124,12 @@ def add_plant(user_id: str, request: AddPlantRequest):
         "unlocked_plants": data["unlocked_plants"],
         "message": f"Planta {request.plant_type} desbloqueada"
     }
+
+def update_plant_stage(user_id: str, plant_id: str, new_stage: str):
+    data = _read_user(user_id)
+    for plant in data["plants"]:
+        if plant["plant_id"] == plant_id:
+            plant["stage"] = new_stage
+            plant["is_ent"] = new_stage == "ent"
+            break
+    _write_user(data)

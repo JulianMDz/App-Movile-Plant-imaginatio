@@ -35,6 +35,7 @@ class PlantState(BaseModel):
     sources_next_state: SourcesNextState
 
 class PlantActionRequest(BaseModel):
+    user_id: str
     plant_id: str
     plant_state: PlantState
 
