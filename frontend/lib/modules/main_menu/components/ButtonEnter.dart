@@ -34,8 +34,10 @@ class ButtonAction extends SpriteButtonComponent {
       textRenderer: TextPaint(
         style: const TextStyle(
           color: Colors.white, 
-          fontSize: 18),
-          //fontFamily: 'Press Start 2P',
+          fontSize: 18,
+          fontFamily: 'Press Start 2P',
+        ),
+        
       ),
     )
       ..anchor = Anchor.center
