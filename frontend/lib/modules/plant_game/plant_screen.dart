@@ -1,9 +1,11 @@
+import 'package:flame/layout.dart';
 import 'package:frontend/modules/plant_game/components/Button_Inventary.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_compost.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_water.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_compost.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_sun.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_water.dart';
+import 'package:frontend/modules/plant_game/components/panel_bar.dart';
 import 'package:frontend/modules/plant_game/components/panel_resource.dart';
 import 'package:frontend/modules/plant_game/components/panel_title.dart';
 import 'package:frontend/modules/plant_game/components/plant.dart';
@@ -27,6 +29,7 @@ class PlantGameScreen extends FlameGame {
 
     final panelInfo = Panel_resource_info();
 
+    final panelBar = PanelLayout();
     final waterGameButton = Button_water_game(
       onPressed: () {
         // Aquí activas el overlay directamente
@@ -42,60 +45,84 @@ class PlantGameScreen extends FlameGame {
     final layout = ColumnComponent(
       children: [
         RowComponent(
-          children: [helpButton, panelTitle],
-        ),
+          children: [
+            PaddingComponent(
+              padding: EdgeInsets.only(right: 40),
+              child: helpButton,
+            ),
+            PaddingComponent(
+              padding: EdgeInsets.symmetric(horizontal: 40),
+              child: panelTitle,
+            ),
+            PaddingComponent(
+              padding: EdgeInsets.only(left: 40),
+              child: inventaryButton,
+            ),
+          ],
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+        )
+          ..size = Vector2(size.x*0.8, 80)
+          ..anchor = Anchor.topCenter
+          ..position = Vector2(size.x / 2, 30), // fila arriba centrada
         RowComponent(
-          children: [waterGameButton, compostGameButton],
-        ),
-      ],
+          children: [panelInfo],
+        )
+          ..anchor = Anchor.topCenter
+          ..position = Vector2(size.x / 2, 100), // fila arriba centrada
+      ]
     );
+    add(layout);
 
-    final row = RowComponent(
+    final columnCenter = ColumnComponent(
       children: [
-        helpButton,
-        panelTitle,
-        inventaryButton,
+        panelBar,
+        PaddingComponent(
+              padding: EdgeInsets.only(top: 80),
+              child: waterGameButton,
+            ),
+            
+        PaddingComponent(
+              padding: EdgeInsets.only(top: 50),
+              child: compostGameButton,
+            ),
       ],
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
     )
-      ..anchor = Anchor.topCenter
-      ..position = Vector2(size.x / 2, 20); // fila arriba centrada
+      ..anchor = Anchor.centerRight
+      ..position = Vector2(size.x-50, size.y / 2); // columna centrada
+    add(columnCenter);
 
-    add(row);
-
-
-    final column = ColumnComponent(
-      children: [
-        waterGameButton,
-        compostGameButton,
-      ],
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final pastoSeed = PlantComponent(
+    'pasto',
+    Vector2(size.x/2, 220),
     )
-      ..anchor = Anchor.center
-      ..position = Vector2(size.x / 2, size.y / 2); // fila arriba centrada
-
-    add(column);
-
-
-final rowDown = RowComponent(
-      children: [
-        sunButton,
-        waterButton,
-        compostButton,
-      ],
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      crossAxisAlignment: CrossAxisAlignment.start,
-    )
-      ..anchor = Anchor.bottomCenter
-      ..position = Vector2(size.x / 2, size.y - 20); // fila arriba centrada
-
-    add(rowDown);
-
-    final pastoSeed = PlantComponent('pasto', Vector2(20, 30));
+      ..anchor = Anchor.center;
     add(pastoSeed);
 
+
+    final rowDown = RowComponent(
+      children: [
+        PaddingComponent(
+              padding: EdgeInsets.only(right: 60),
+              child: sunButton,
+            ),
+        PaddingComponent(
+              padding: EdgeInsets.only(right: 60),
+              child: waterButton,
+            ),
+        compostButton,
+      ],
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+    )
+      ..size = Vector2(size.x*0.8, 80)
+      ..anchor = Anchor.bottomCenter
+      ..position = Vector2(size.x / 2, size.y - 40); // fila arriba centrada
+    add(rowDown);
+
+   
   }
 }
 

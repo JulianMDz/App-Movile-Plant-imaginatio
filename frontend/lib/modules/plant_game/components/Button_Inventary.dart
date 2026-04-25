@@ -17,7 +17,6 @@ class Button_inventory extends SpriteButtonComponent {
     button = await Sprite.load('Botones/Boton_Inventario_02.png');
     buttonDown = await Sprite.load('Botones/Boton_Inventario_01.png');
 
-    size = button.srcSize;       
-    scale = Vector2.all(0.5);  
+    size = button.srcSize/2;   
   }
 }

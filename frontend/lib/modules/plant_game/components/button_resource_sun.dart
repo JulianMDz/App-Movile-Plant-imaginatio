@@ -17,7 +17,6 @@ class Button_resource_sun extends SpriteButtonComponent {
     button = await Sprite.load('Botones/Boton_RecursoSol_02.png');
     buttonDown = await Sprite.load('Botones/Boton_RecursoSol_01.png');
 
-    size = button.srcSize;       
-    scale = Vector2.all(0.5); 
+    size = button.srcSize/2;  
   }
 }
