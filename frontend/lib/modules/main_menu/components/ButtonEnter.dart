@@ -8,10 +8,10 @@ import 'package:go_router/go_router.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
-class ButtonAction extends SpriteButtonComponent {
+class ButtonEnter extends SpriteButtonComponent {
   late TextComponent textComp;
 
-  ButtonAction({required void Function() onPressed})
+  ButtonEnter({required void Function() onPressed})
       : super(
        size: Vector2.zero(),
        button: null, 
