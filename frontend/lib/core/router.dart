@@ -1,10 +1,10 @@
-
 import 'package:flame/game.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:frontend/modules/plant_game/plant_screen.dart';
 import 'package:frontend/modules/main_menu/main_menu.dart';
 import 'package:frontend/modules/main_menu/login_screen.dart';
+import 'package:frontend/modules/inventory/inventory_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/menu', // ← Esto define la ruta inicial
@@ -23,8 +23,11 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/plant_game',
-      builder: (context, state) => GameWidget(game: PlantGameScreen(),),
+      builder: (context, state) => GameWidget(game: PlantGameScreen(context),),
     ),
+    GoRoute(
+   path: '/inventory',
+   builder: (context, state) => GameWidget(game: InventoryScreen(context),),
+  ),
   ],
 );
-

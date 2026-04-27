@@ -13,6 +13,7 @@ import 'package:frontend/modules/plant_game/components/plant.dart';
 import 'package:frontend/modules/plant_game/components/background.dart';
 import 'package:frontend/modules/plant_game/components/Button_help.dart';
 import 'package:flame/components.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:flame/experimental.dart';
 import 'package:flame/game.dart';
@@ -23,15 +24,20 @@ import 'package:frontend/modules/plant_game/mini_games/water/water_overlay.dart'
 
 
 class PlantGameScreen extends FlameGame {
+  final BuildContext context;
 
+  PlantGameScreen(this.context);
 
   @override
   Future<void> onLoad() async {
     add(Background());
     final helpButton = Button_help(onPressed: () { });
     final panelTitle = Panel_title();
-    final inventaryButton = Button_inventory(onPressed: () { });
-
+    final inventaryButton = Button_inventory(onPressed: () { 
+      GoRouter.of(context).go('/inventory');
+      },
+    );
+    
     final panelInfo = Panel_resource_info();
 
     final panelBar = PanelLayout();
