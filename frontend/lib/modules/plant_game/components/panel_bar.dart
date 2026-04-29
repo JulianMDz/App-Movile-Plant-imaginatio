@@ -7,12 +7,12 @@ class PanelLayout extends PositionComponent {
   @override
 Future<void> onLoad() async {
   await super.onLoad();
-  Future<Component> buildItem(String path, double progress, Color color) async {
+  Future<PositionComponent> buildItem(String path, double progress, Color color) async {
     final img = await Flame.images.load(path);
 
     final sprite = SpriteComponent(
       sprite: Sprite(img),
-      size: Sprite(img).srcSize / 3,
+      size: Sprite(img).srcSize / 2,
     );
 
     final barra = BarraCarga(
@@ -29,18 +29,38 @@ Future<void> onLoad() async {
      
   }
   
+  final item1 = await buildItem(
+    'Iconos/Icono_Sol_01.png',
+    0.8,
+    Color.fromARGB(255, 228, 110, 0),
+  );
 
+  final item2 = await buildItem(
+    'Iconos/Icono_Agua_01.png',
+    0.5,
+    Color.fromARGB(255, 28, 87, 120),
+  );
+
+  final item3 = await buildItem(
+    'Iconos/Icono_Abono_01.png',
+    0.3,
+    Color.fromARGB(255, 67, 27, 4),
+  );
 
   final column = ColumnComponent(
     children: [
-      await buildItem('Iconos/Icono_Sol_01.png', 0.8, Color.fromARGB(255, 228, 110, 0)),
-      await buildItem('Iconos/Icono_Agua_01.png', 0.5, Color.fromARGB(255, 28, 87, 120)),
-      await buildItem('Iconos/Icono_Abono_01.png', 0.3, Color.fromARGB(255, 67, 27, 4)),
+      PaddingComponent(
+        padding: EdgeInsets.only(bottom: 5),
+        child: item1,
+      ),
+      PaddingComponent(
+        padding: EdgeInsets.only(bottom: 5),
+        child: item2,
+      ),
+      item3,
     ],
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    crossAxisAlignment: CrossAxisAlignment.center,
-  )  
-  ..anchor = Anchor.center;
+  ) 
+    ..anchor = Anchor.center;
 
   await add(column);
 }
