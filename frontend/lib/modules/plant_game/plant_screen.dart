@@ -1,8 +1,16 @@
 import 'package:flame/layout.dart';
+import 'package:frontend/modules/plant_game/components/Animation_compost.dart';
+import 'package:frontend/modules/plant_game/components/Animation_critical.dart';
+import 'package:frontend/modules/plant_game/components/Animation_danger.dart';
+import 'package:frontend/modules/plant_game/components/Animation_evo.dart';
+import 'package:frontend/modules/plant_game/components/Animation_sun.dart';
+import 'package:frontend/modules/plant_game/components/Animation_tombstone.dart';
+import 'package:frontend/modules/plant_game/components/Animation_water.dart';
 import 'package:frontend/modules/plant_game/components/Button_Inventary.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_compost.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_sun.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_water.dart';
+import 'package:frontend/modules/plant_game/components/Text_name.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_compost.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_sun.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_water.dart';
@@ -47,7 +55,7 @@ class PlantGameScreen extends FlameGame {
           add(SunOverlay());
        })
     ..anchor = Anchor.centerLeft
-    ..position = Vector2(20, 150);
+    ..position = Vector2(20, 180);
 
     final waterGameButton = Button_water_game(
       onPressed: () {
@@ -63,7 +71,7 @@ class PlantGameScreen extends FlameGame {
     final waterButton = Button_resource_water(onPressed: () { });
     final compostButton = Button_resource_compost(onPressed: () { });
     
-    final layout = ColumnComponent(
+    final layoutTop = ColumnComponent(
       children: [
         RowComponent(
           children: [
@@ -85,15 +93,15 @@ class PlantGameScreen extends FlameGame {
         )
           ..size = Vector2(size.x*0.8, 80)
           ..anchor = Anchor.topCenter
-          ..position = Vector2(size.x / 2, 30), // fila arriba centrada
+          ..position = Vector2(size.x / 2, 60), // fila arriba centrada
         RowComponent(
           children: [panelInfo],
         )
           ..anchor = Anchor.topCenter
-          ..position = Vector2(size.x / 2, 80), // fila arriba centrada
+          ..position = Vector2(size.x / 2, 110), // fila arriba centrada
       ]
     );
-    add(layout);
+    add(layoutTop);
 
     add(sunGameButton);
 
@@ -119,11 +127,12 @@ class PlantGameScreen extends FlameGame {
 
     final pastoSeed = PlantComponent(
     'pasto',
-    Vector2(size.x/2, 220),
+    Vector2(size.x/2, size.y/2 + 20),
     )
       ..anchor = Anchor.center;
     add(pastoSeed);
 
+    
 
     final rowDown = RowComponent(
       children: [
@@ -142,9 +151,10 @@ class PlantGameScreen extends FlameGame {
     )
       ..size = Vector2(size.x*0.8, 80)
       ..anchor = Anchor.bottomCenter
-      ..position = Vector2(size.x / 2, size.y - 40); // fila arriba centrada
+      ..position = Vector2(size.x / 2, size.y - 80); // fila arriba centrada
     add(rowDown);
 
+    add(textName());
    
   }
 }

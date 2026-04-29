@@ -1,9 +1,10 @@
 import 'package:flame/game.dart';
+import 'package:frontend/modules/main_menu/login_screen.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:frontend/modules/plant_game/plant_screen.dart';
 import 'package:frontend/modules/main_menu/main_menu.dart';
-import 'package:frontend/modules/main_menu/login_screen.dart';
+import 'package:frontend/modules/main_menu/components/loginComponent.dart';
 import 'package:frontend/modules/inventory/inventory_screen.dart';
 
 final router = GoRouter(
@@ -19,7 +20,7 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/login',
-    builder: (context, state) => GameWidget(game: LoginScreen(context),),
+    builder: (context, state) => LoginOverlay(contextApp: context),
     ),
     GoRoute(
       path: '/plant_game',

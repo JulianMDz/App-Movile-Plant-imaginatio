@@ -1,47 +1,50 @@
-
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
-import 'package:frontend/modules/main_menu/components/PanelName.dart';
-import 'package:go_router/go_router.dart';
+import 'package:frontend/modules/main_menu/components/loginComponent.dart';
+class LoginOverlay extends StatelessWidget {
+  final BuildContext contextApp;
 
-import 'package:flame/components.dart';
-import 'components/ButtonEnter.dart';
-import 'components/PanelEnter.dart';
-
-
-class LoginScreen extends FlameGame {
-  final BuildContext context;
-
-  LoginScreen(this.context);
-   @override
-  Color backgroundColor() => const Color.fromARGB(255, 61, 67, 17);
-  @override
-  Future<void> onLoad() async {
-  final panelEnter = PanelEnter()
-    ..anchor = Anchor.center
-    ..position = Vector2(size.x/2, size.y /2);
-  add(panelEnter);
-
-  final panelName = PanelName()
-    ..anchor = Anchor.center
-    ..position = Vector2(size.x/2, size.y /2);
-  add(panelName);
-  
-
-
-  final buttonEnter = ButtonEnter(
-      onPressed: () {
-        GoRouter.of(context).go('/plant_game');
-      },)
-      ..anchor = Anchor.bottomCenter
-      ..position = Vector2(size.x / 2, size.y / 2+90);
-  
-  add(buttonEnter);
+  const LoginOverlay({super.key, required this.contextApp});
 
   @override
-  void onMount() {
-  super.onMount();
-  overlays.add('input'); // ✔️ aquí sí funciona
-  } 
-  }  
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: GameWidget<LoginScreen>(
+        game: LoginScreen(contextApp),
+
+        // 🔥 AQUÍ VA TU CÓDIGO
+        overlayBuilderMap: {
+          'input': (context, game) {
+            return Stack(
+              children: [
+                Positioned(
+                  left: MediaQuery.of(context).size.width / 2 - 125,
+                  top: MediaQuery.of(context).size.height / 2 - 20,
+                  child: SizedBox(
+                    width: 250,
+                    child: TextField(
+                      style: const TextStyle(
+                        fontFamily: 'Press Start 2P',
+                        fontSize: 12,
+                        color: Colors.black,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Escribe tu nombre...',
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        },
+
+        // 🔥 y asegúrate de esto
+        initialActiveOverlays: const ['input'],
+      ),
+    );
+  }
 }

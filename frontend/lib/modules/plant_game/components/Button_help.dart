@@ -17,6 +17,6 @@ class Button_help extends SpriteButtonComponent {
     button = await Sprite.load('Botones/Boton_Ayuda_02.png');
     buttonDown = await Sprite.load('Botones/Boton_Ayuda_01.png');
 
-    size = button.srcSize/3;   
+    size = button.srcSize/2.5;   
   }
 }

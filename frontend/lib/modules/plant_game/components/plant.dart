@@ -41,7 +41,7 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   final String plantType;
 
   PlantComponent(this.plantType, Vector2 position)
-      : super(position: position, size: Vector2(500, 500));
+      : super(position: position, size: Vector2(250, 250));
 
   @override
   Future<void> onLoad() async {
@@ -63,7 +63,7 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
       SpriteAnimationData.sequenced(
         amount: frames,
         stepTime: 0.1,
-        textureSize: Vector2(1000, 1000),
+        textureSize: Vector2(500, 500),
       ),
     );
   }
