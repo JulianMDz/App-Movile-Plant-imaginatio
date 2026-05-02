@@ -21,8 +21,8 @@ class CompostOverlay extends FlameGame {
     super.onGameResize(canvasSize);
 
     compostGrid
-      ..position = canvasSize / 2
-      ..anchor = Anchor.center;
+      ..anchor = Anchor.center
+      ..position = Vector2(canvasSize.x / 2, canvasSize.y / 2+20);
   }
 }
 

@@ -21,14 +21,18 @@ class Button_resource_sun extends SpriteButtonComponent with HasGameRef{
     button = await Sprite.load('Botones/Boton_RecursoSol_02.png');
     buttonDown = await Sprite.load('Botones/Boton_RecursoSol_01.png');
 
-    size = button.srcSize/2;  
+    size = button.srcSize/2.3;  
 
   onPressed = () { 
     final animacionSun = Animation_sun(
       'pasto',
-      Vector2(size.x, size.y), // tamaño independiente
+      Vector2(gameRef.size.x, gameRef.size.y),
     )
-      ..position = Vector2(size.x/2, size.y/2+160);
+      ..anchor = Anchor.center
+      ..position = Vector2(
+        gameRef.size.x / 2,
+        gameRef.size.y / 2,
+      );
 
     gameRef.add(animacionSun);
   };
@@ -44,8 +48,8 @@ class Button_resource_sun extends SpriteButtonComponent with HasGameRef{
         ),
       ),
     )
-      ..anchor = Anchor.topRight
-      ..position = Vector2(size.x, 5); // 🔥 esquina superior derecha
+      ..anchor = Anchor.topLeft
+      ..position = Vector2(2, 6); // 🔥 esquina superior derecha
 
     add(text);
   }

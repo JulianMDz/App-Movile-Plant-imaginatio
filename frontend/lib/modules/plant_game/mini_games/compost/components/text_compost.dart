@@ -16,6 +16,6 @@ class textCompost extends TextBoxComponent with HasGameRef {
     
     anchor = Anchor.center;
     align = Anchor.center; //
-    position = Vector2(gameRef.size.x / 2, 200);
+    position = Vector2(gameRef.size.x / 2, 120);
   }
 }

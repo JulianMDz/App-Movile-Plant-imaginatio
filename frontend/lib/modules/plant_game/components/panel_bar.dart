@@ -12,17 +12,22 @@ Future<void> onLoad() async {
 
     final sprite = SpriteComponent(
       sprite: Sprite(img),
-      size: Sprite(img).srcSize / 2,
+      size: Sprite(img).srcSize /1.5,
     );
 
     final barra = BarraCarga(
       fillColor: color,
     )
-      ..size = Vector2(40, 5)
+      ..size = Vector2(70, 10)
       ..progress = progress;
 
     return RowComponent(
-      children: [sprite, barra],
+      children: [
+        PaddingComponent(
+        padding: EdgeInsets.only(right: 10),
+        child: sprite,
+      ),
+      barra],
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
     );
@@ -50,11 +55,11 @@ Future<void> onLoad() async {
   final column = ColumnComponent(
     children: [
       PaddingComponent(
-        padding: EdgeInsets.only(bottom: 5),
+        padding: EdgeInsets.only(bottom: 10),
         child: item1,
       ),
       PaddingComponent(
-        padding: EdgeInsets.only(bottom: 5),
+        padding: EdgeInsets.only(bottom: 10),
         child: item2,
       ),
       item3,

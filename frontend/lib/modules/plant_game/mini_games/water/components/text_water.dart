@@ -1,4 +1,5 @@
 import 'package:flame/components.dart';
+import 'package:flame/experimental.dart';
 import 'package:flutter/material.dart';
 
 class textWater extends PositionComponent with HasGameRef {
@@ -16,9 +17,6 @@ class textWater extends PositionComponent with HasGameRef {
         ),
       ),
       align: Anchor.center,
-      anchor: Anchor.center,
-      size: Vector2(200, 40),
-      position: Vector2(0, -20), // 👈 arriba
     );
 
     // 🔹 Texto grande (abajo)
@@ -32,15 +30,22 @@ class textWater extends PositionComponent with HasGameRef {
         ),
       ),
       align: Anchor.center,
-      anchor: Anchor.center,
-      size: Vector2(200, 60),
-      position: Vector2(0, 20), // 👈 abajo
     );
 
-    add(tiempo);
-    add(titulo);
+    final rowText = RowComponent(
+    children: [
+     PaddingComponent(
+              padding: EdgeInsets.only(right: 100),
+              child: tiempo,
+            ),
+     titulo],
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  );
 
-    // 🔥 centro general del bloque
-    position = Vector2(gameRef.size.x / 2, 200);
+  add(rowText);
+    rowText
+      ..position = gameRef.size / 2
+      ..anchor = Anchor.center
+      ..size = Vector2(gameRef.size.x * 0.8, 50);
   }
 }

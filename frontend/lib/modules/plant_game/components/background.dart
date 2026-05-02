@@ -4,7 +4,7 @@ class Background extends SpriteComponent with HasGameRef {
   @override
   Future<void> onLoad() async {
     // Cargar la imagen
-    sprite = await Sprite.load('Escenarios/Escenario_Opcion_07.png');
+    sprite = await Sprite.load('Escenarios/Escenario_Opcion_05.png');
 
     // Ajustar el alto al tamaño del juego
     final double scaleFactor = gameRef.size.y / sprite!.image.height;
@@ -16,6 +16,9 @@ class Background extends SpriteComponent with HasGameRef {
     );
 
     // Centrar en pantalla
-    position = (gameRef.size - size) / 2;
+    position = Vector2(
+      (gameRef.size.x - size.x) / 2,
+      (gameRef.size.y - size.y) / 2,
+    );
   }
 }

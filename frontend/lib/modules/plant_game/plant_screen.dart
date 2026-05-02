@@ -48,14 +48,16 @@ class PlantGameScreen extends FlameGame {
     
     final panelInfo = Panel_resource_info();
 
-    final panelBar = PanelLayout();
+    final panelBar = PanelLayout()
+      ..anchor = Anchor.centerLeft
+      ..position = Vector2(80, size.y/2); // columna centrada
+  
 
     final sunGameButton = Button_sun_game(
       onPressed: () {
           add(SunOverlay());
-       })
-    ..anchor = Anchor.centerLeft
-    ..position = Vector2(20, 180);
+       },
+    );
 
     final waterGameButton = Button_water_game(
       onPressed: () {
@@ -71,59 +73,56 @@ class PlantGameScreen extends FlameGame {
     final waterButton = Button_resource_water(onPressed: () { });
     final compostButton = Button_resource_compost(onPressed: () { });
     
-    final layoutTop = ColumnComponent(
+     final rowTop = RowComponent(
       children: [
-        RowComponent(
-          children: [
-            PaddingComponent(
+        PaddingComponent(
+              padding: EdgeInsets.only(right: 10),
+              child: panelTitle,
+            ),   
+        panelInfo, 
+        PaddingComponent(
               padding: EdgeInsets.only(right: 10),
               child: helpButton,
-            ),
-            PaddingComponent(
-              padding: EdgeInsets.symmetric(horizontal: 40),
-              child: panelTitle,
-            ),
-            PaddingComponent(
-              padding: EdgeInsets.only(left: 10),
+            ), 
+        PaddingComponent(
+              padding: EdgeInsets.only(right: 10),
               child: inventaryButton,
             ),
-          ],
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-        )
-          ..size = Vector2(size.x*0.8, 80)
-          ..anchor = Anchor.topCenter
-          ..position = Vector2(size.x / 2, 60), // fila arriba centrada
-        RowComponent(
-          children: [panelInfo],
-        )
-          ..anchor = Anchor.topCenter
-          ..position = Vector2(size.x / 2, 110), // fila arriba centrada
-      ]
-    );
-    add(layoutTop);
+   
+      ],
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+    )
+      ..anchor = Anchor.topCenter
+      ..position = Vector2(size.x/2, 30); // columna centrada
+    add(rowTop);
 
-    add(sunGameButton);
 
-    final columnCenter = ColumnComponent(
+    final layoutCenter = ColumnComponent(
       children: [
-        panelBar,
+        sunGameButton,
         PaddingComponent(
-              padding: EdgeInsets.only(top: 80),
+          padding: EdgeInsets.only(top: 150),
+          child: RowComponent(
+            children: [
+              PaddingComponent(
+              padding: EdgeInsets.only(right: 200),
               child: waterGameButton,
             ),
-            
-        PaddingComponent(
-              padding: EdgeInsets.only(top: 50),
-              child: compostGameButton,
-            ),
+              compostGameButton,
+            ],
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+          ),
+        ),
       ],
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
     )
-      ..anchor = Anchor.centerRight
-      ..position = Vector2(size.x-20, size.y /2-40); // columna centrada
-    add(columnCenter);
+      ..anchor = Anchor.center
+      ..position = Vector2(size.x /2, size.y / 2+10);
+
+    add(layoutCenter);
 
     final pastoSeed = PlantComponent(
     'pasto',
@@ -132,16 +131,16 @@ class PlantGameScreen extends FlameGame {
       ..anchor = Anchor.center;
     add(pastoSeed);
 
-    
+    add(panelBar);
 
-    final rowDown = RowComponent(
+    final columnRight = ColumnComponent(
       children: [
         PaddingComponent(
-              padding: EdgeInsets.only(right: 40),
+              padding: EdgeInsets.only(bottom: 20),
               child: sunButton,
             ),
         PaddingComponent(
-              padding: EdgeInsets.only(right: 40),
+              padding: EdgeInsets.only(bottom: 20),
               child: waterButton,
             ),
         compostButton,
@@ -150,9 +149,9 @@ class PlantGameScreen extends FlameGame {
       crossAxisAlignment: CrossAxisAlignment.center,
     )
       ..size = Vector2(size.x*0.8, 80)
-      ..anchor = Anchor.bottomCenter
-      ..position = Vector2(size.x / 2, size.y - 80); // fila arriba centrada
-    add(rowDown);
+      ..anchor = Anchor.centerRight
+      ..position = Vector2(size.x-20, size.y / 2);// fila arriba centrada
+    add(columnRight);
 
     add(textName());
    

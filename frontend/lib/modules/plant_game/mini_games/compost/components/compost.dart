@@ -5,9 +5,11 @@ import 'package:flame/events.dart';
 class CompostGrid extends PositionComponent with TapCallbacks {
   late List<Sprite> sprites;
 
-  final int rows = 3;
-  final int cols = 3;
-  final double cellSize = 60;
+  final int rows = 2;
+  final int cols = 4;
+  final double cellSize = 50;
+
+  final double spacing = 40;
 
   late List<List<int>> gridState;
 
@@ -29,16 +31,19 @@ class CompostGrid extends PositionComponent with TapCallbacks {
       (_) => List.generate(cols, (_) => 0),
     );
 
-    size = Vector2(cols * cellSize, rows * cellSize);
-    
+    size = Vector2(
+      cols * cellSize + (cols - 1) * spacing,
+      rows * cellSize + (rows - 1) * spacing,
+    );
+        
   }
 
  @override
 void render(Canvas canvas) {
   for (int row = 0; row < rows; row++) {
     for (int col = 0; col < cols; col++) {
-      final posX = col * cellSize;
-      final posY = row * cellSize;
+      final posX = col * (cellSize+spacing);
+      final posY = row * (cellSize+spacing);
 
       final spriteIndex = gridState[row][col];
 
@@ -58,8 +63,8 @@ void render(Canvas canvas) {
   void onTapUp(TapUpEvent event) {
     final local = event.localPosition;
 
-    final col = (local.x / cellSize).floor();
-    final row = (local.y / cellSize).floor();
+    final col = (local.x / (cellSize + spacing)).floor();
+    final row = (local.y / (cellSize + spacing)).floor();
 
     if (row >= 0 && row < rows && col >= 0 && col < cols) {
       // cambia al siguiente estado (ciclo 0→5)
