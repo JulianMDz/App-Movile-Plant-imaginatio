@@ -1,7 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
-class textName extends TextBoxComponent with HasGameRef {
+class textName extends TextComponent with HasGameRef {
   @override
   Future<void> onLoad() async {
     text = "Bienventid@, nombre";
@@ -13,9 +13,6 @@ class textName extends TextBoxComponent with HasGameRef {
         fontFamily: 'Press Start 2P',
       ),
     );
-    
-    anchor = Anchor.bottomCenter;
-    align = Anchor.center; //
-    position = Vector2(gameRef.size.x/2 , gameRef.size.y-30); // posición centrada en la parte inferior
+  /// posición centrada en la parte inferior
   }
 }

@@ -7,6 +7,7 @@ import 'package:frontend/modules/plant_game/components/Animation_sun.dart';
 import 'package:frontend/modules/plant_game/components/Animation_tombstone.dart';
 import 'package:frontend/modules/plant_game/components/Animation_water.dart';
 import 'package:frontend/modules/plant_game/components/Button_Inventary.dart';
+import 'package:frontend/modules/plant_game/components/Button_game_3d.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_compost.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_sun.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_water.dart';
@@ -72,14 +73,20 @@ class PlantGameScreen extends FlameGame {
     final sunButton = Button_resource_sun(onPressed: () { });
     final waterButton = Button_resource_water(onPressed: () { });
     final compostButton = Button_resource_compost(onPressed: () { });
+
+    final button3d = Button_game_3d(onPressed: () { });
+    final name = textName();
     
      final rowTop = RowComponent(
       children: [
         PaddingComponent(
               padding: EdgeInsets.only(right: 10),
               child: panelTitle,
+            ),  
+        PaddingComponent(
+              padding: EdgeInsets.only(right: 30),
+              child: panelInfo,
             ),   
-        panelInfo, 
         PaddingComponent(
               padding: EdgeInsets.only(right: 10),
               child: helpButton,
@@ -153,8 +160,20 @@ class PlantGameScreen extends FlameGame {
       ..position = Vector2(size.x-20, size.y / 2);// fila arriba centrada
     add(columnRight);
 
-    add(textName());
-   
+    final rowDown = RowComponent(
+      children: [
+        PaddingComponent(
+              padding: EdgeInsets.only(right: 400),
+              child: name,
+            ),
+        button3d
+      ],
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+    )
+      ..anchor = Anchor.bottomCenter
+      ..position = Vector2(size.x/2, size.y -10); // fila abajo centrada
+    add(rowDown);
   }
 }
 
