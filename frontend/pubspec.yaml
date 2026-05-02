@@ -36,6 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   flame: ^1.37.0
   go_router: ^17.2.2
+  flame_audio: ^2.0.0
+
 
 dev_dependencies:
   flutter_test:
@@ -68,8 +70,8 @@ flutter:
     - assets/images/Minijuegos/
     - assets/images/Paneles/
     - assets/images/Planta/
-
-
+    - assets/audios/
+    
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
