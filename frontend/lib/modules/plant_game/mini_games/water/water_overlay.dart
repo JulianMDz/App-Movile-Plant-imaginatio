@@ -1,190 +1,142 @@
 import 'package:flame/components.dart';
+import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flame/input.dart'; // ← Para TapCallbacks
 
 import 'package:frontend/modules/plant_game/mini_games/water/components/panel_water.dart';
 import 'package:frontend/modules/plant_game/mini_games/water/components/text_water.dart';
+import 'package:frontend/modules/plant_game/mini_games/water/components/warning_water.dart';
 import 'package:frontend/modules/plant_game/mini_games/water/components/water.dart';
-
+import 'package:frontend/modules/plant_game/mini_games/water/water_logic.dart';
 // Importamos el servicio que maneja la lógica local (SharedPreferences)
 import 'package:frontend/services/minigame_service.dart';
 
 class WaterOverlay extends FlameGame {
   late ButtonResourceWater buttonWater;
-  late TextWater textComponents; // Ahora instanciamos nuestra clase modificada
-  
-  final MinigameService _minigameService = MinigameService();
+  late TextWater textComponents;
 
-  // Variables de Estado del Minijuego
-  double timeLeft = 5.0;
-  int clickCount = 0;
-  bool isGameActive = false;
-  bool isGameOver = false;
+  final MinigameService _minigameService = MinigameService();
+  final WaterLogic logic = WaterLogic();
 
   @override
   Future<void> onLoad() async {
-    // 1. Instanciar los componentes
     textComponents = TextWater();
     buttonWater = ButtonResourceWater(onPressed: _onWaterTapped);
 
-    // 2. Agregarlos al juego
     add(panelWater());
     add(buttonWater);
     add(textComponents);
+
+    logic.start();
   }
 
   @override
   void onGameResize(Vector2 canvasSize) {
     super.onGameResize(canvasSize);
-    
-    // Centrar el botón y los textos
+
     buttonWater
       ..position = canvasSize / 2
       ..anchor = Anchor.center;
-      
+
     textComponents
       ..position = canvasSize / 2
       ..anchor = Anchor.center;
   }
 
-  // Lógica al tocar la gota de agua
   void _onWaterTapped() {
-    if (isGameOver) return; // Si ya terminó, ignorar clics
-
-    if (!isGameActive) {
-      isGameActive = true; // Inicia la cuenta regresiva en el primer toque
-    }
-
-    clickCount++;
-    textComponents.updateClicks(clickCount); // Actualiza la pantalla
+    logic.onTap();
+    textComponents.updateClicks(logic.clickCount);
   }
 
-  // Flame llama a update() en cada frame de la pantalla
   @override
   void update(double dt) {
     super.update(dt);
 
-    if (isGameActive && !isGameOver) {
-      timeLeft -= dt; // Restar el tiempo (dt = delta time en segundos)
+    logic.update(dt);
 
-      if (timeLeft <= 0) {
-        timeLeft = 0;
-        _endMinigame(); // Acabar el juego si el tiempo llega a 0
-      }
+    textComponents.updateTime(logic.timeLeft);
 
-      textComponents.updateTime(timeLeft); // Actualizar pantalla
+    if (logic.shouldEndGame) {
+      logic.markRewardProcessed();
+      _endMinigame();
     }
   }
 
-  // Lógica de finalización
   Future<void> _endMinigame() async {
-    isGameOver = true;
-    isGameActive = false;
-    buttonWater.state = 2; // Estado "Disabled" visualmente
+    buttonWater.state = 2;
 
     try {
-      // 1. Guardar y procesar la recompensa en la base local
-      final result = await _minigameService.playWaterMinigame(clickCount);
-      
-      // 2. Mostrar la alerta en pantalla
+      final result =
+          await _minigameService.playWaterMinigame(logic.clickCount);
+
       _showAlert(result['message']);
-      
     } catch (e) {
       print("Error al guardar recursos: $e");
     }
   }
 
+ void _closeOverlay() {
+    removeFromParent();
+  }
+
   void _showAlert(String message) {
-    // Agrega un componente de alerta nativo de Flame encima de todo
-    final alertComponent = WaterAlertComponent(message: message, size: size);
-    add(alertComponent);
+    add(
+      WaterAlertComponent
+      (message: message,
+       size: size,
+       onClose: _closeOverlay,
+       waterAmount: logic.waterReward,
+      )
+    );
   }
 }
 
 // -------------------------------------------------------------
-// COMPONENTE DE ALERTA NATIVO (Se muestra al acabar el tiempo)
+// ALERTA FINAL
 // -------------------------------------------------------------
-class WaterAlertComponent extends PositionComponent {
+class WaterAlertComponent extends PositionComponent with TapCallbacks {
   final String message;
-  double _timeVisible = 0;
-  static const double _autoCloseTime = 2.0;
+  final VoidCallback onClose;
+  final int waterAmount;
   bool _closed = false;
 
-  WaterAlertComponent({required this.message, required Vector2 size}) 
-    : super(size: size);
+  WaterAlertComponent({
+    required this.message,
+    required Vector2 size,
+    required this.onClose,
+    required this.waterAmount,
+  }) : super(size: size);
 
   @override
   Future<void> onLoad() async {
-    // Fondo oscuro semi-transparente (se puede tocar para cerrar)
-    final background = RectangleComponent(
-      size: size,
-      paint: Paint()..color = Colors.black.withOpacity(0.7),
-    );
-    add(background);
+    // 👇 aquí sí funciona
+    final waterA = warningWater(waterAmount: waterAmount);
 
-    // Caja de diálogo central
-    final dialogSize = Vector2(300, 150);
-    final dialog = RectangleComponent(
-      size: dialogSize,
-      position: size / 2,
-      anchor: Anchor.center,
-      paint: Paint()..color = const Color(0xFF1D899F),
-    );
-    add(dialog);
+    // opcional: centrarlo
+    waterA
+      ..position = Vector2(size.x / 2, size.y / 2)
+      ..anchor = Anchor.center;
 
-    // Texto de recompensa
-    final text = TextComponent(
-      text: message,
-      position: size / 2,
-      anchor: Anchor.center,
-      textRenderer: TextPaint(
-        style: const TextStyle(
-          color: Colors.white, 
-          fontSize: 16, 
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-    add(text);
-
-    // Texto de ayuda
-    final hint = TextComponent(
-      text: 'Toca para cerrar',
-      position: Vector2(size.x / 2, size.y / 2 + 50),
-      anchor: Anchor.center,
-      textRenderer: TextPaint(
-        style: const TextStyle(
-          color: Colors.white70, 
-          fontSize: 12,
-        ),
-      ),
-    );
-    add(hint);
+    add(waterA);
   }
 
-  // Detecta cualquier toque en pantalla
+
   @override
-  void onTapCancel() {
+  void onTapDown(TapDownEvent event) {
     _closeMinigame();
   }
 
-  // Cierra automáticamente después de 2 segundos
   @override
   void update(double dt) {
     super.update(dt);
-    
-    if (_closed) return;
-    
-    _timeVisible += dt;
-    if (_timeVisible >= _autoCloseTime) {
-      _closeMinigame();
-    }
   }
 
   void _closeMinigame() {
     if (_closed) return;
     _closed = true;
+    onClose(); 
     removeFromParent();
   }
+  
 }

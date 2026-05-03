@@ -1,21 +1,33 @@
 import 'package:flame/components.dart';
+import 'package:flame/experimental.dart';
 import 'package:flutter/material.dart';
 
 class textCompost extends TextBoxComponent with HasGameRef {
-  @override
-  Future<void> onLoad() async {
-    text = "2 SEC";
+  late TextBoxComponent tiempoText;
 
-    textRenderer = TextPaint(
-      style: const TextStyle(
-        color: Color.fromARGB(255, 152, 85, 47),
-        fontSize: 20,
-        fontFamily: 'Press Start 2P',
+  @override
+   Future<void> onLoad() async {
+    // 🔹 Texto de tiempo (arriba)
+    tiempoText = TextBoxComponent(
+      text: "3 SEC",
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          color: Color.fromARGB(255, 152, 85, 47),
+          fontSize: 20,
+          fontFamily: 'Press Start 2P',
+        ),
       ),
+      align: Anchor.center,
+      anchor: Anchor.center,
+      size: Vector2(200, 40),
+      position: Vector2(0, -90), // Arriba
     );
-    
-    anchor = Anchor.center;
-    align = Anchor.center; //
-    position = Vector2(gameRef.size.x / 2, 120);
+    add(tiempoText);
   }
+
+   // Métodos para actualizar la UI desde el Game Loop
+  void updateTime(double timeLeft) {
+    tiempoText.text = "${timeLeft.ceil()} SEC";
+  }
+
 }
