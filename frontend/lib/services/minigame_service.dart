@@ -38,9 +38,9 @@ class MinigameService {
   // MINIJUEGO DE AGUA
   Future<Map<String, dynamic>> playWaterMinigame(int clicks) async {
     int reward = 0;
-    if (clicks >= 50) reward = 6;
-    else if (clicks >= 35) reward = 4;
-    else if (clicks >= 25) reward = 2;
+    if (clicks >= 50) { reward = 6; }
+    else if (clicks >= 35) { reward = 4; }
+    else if (clicks >= 25) { reward = 2; }
 
     final userId = await _storage.getCurrentSession();
     if (userId != null) {

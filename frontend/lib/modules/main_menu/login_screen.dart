@@ -60,10 +60,14 @@ class _LoginOverlayState extends State<LoginOverlay> {
     }
 
     // 3. Recargar el controlador de estado y navegar al juego
+    // Capturamos referencias antes del gap asíncrono para evitar use_build_context_synchronously
+    final controller = Provider.of<PlantController>(widget.contextApp, listen: false);
+    final router = GoRouter.of(widget.contextApp);
+
+    await controller.loadCurrentTree();
+
     if (mounted) {
-      final controller = Provider.of<PlantController>(widget.contextApp, listen: false);
-      await controller.loadCurrentTree();
-      GoRouter.of(widget.contextApp).go('/plant_game');
+      router.go('/plant_game');
     }
   }
 

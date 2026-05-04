@@ -24,8 +24,7 @@ import 'package:frontend/modules/plant_game/components/Button_help.dart';
 import 'package:flame/components.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:frontend/modules/plant_game/plant_logic.dart'; 
-
+import 'package:frontend/modules/plant_game/plant_logic.dart';
 
 import 'package:flame/experimental.dart';
 import 'package:flame/game.dart';
@@ -78,7 +77,9 @@ class PlantGameScreen extends FlameGame {
     final waterButton = Button_resource_water(onPressed: () { });
     final compostButton = Button_resource_compost(onPressed: () { });
 
-    final button3d = Button_game_3d(onPressed: () { });
+    final button3d = Button_game_3d(onPressed: () {
+      overlays.add('sync');
+    });
     final name = textName();
     
      final rowTop = RowComponent(

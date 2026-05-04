@@ -6,7 +6,7 @@ class textCompost extends TextBoxComponent with HasGameRef {
   late TextBoxComponent tiempoText;
 
   @override
-   Future<void> onLoad() async {
+  Future<void> onLoad() async {
     // 🔹 Texto de tiempo (arriba)
     tiempoText = TextBoxComponent(
       text: "3 SEC",

@@ -1,5 +1,6 @@
 import 'package:flame/game.dart';
 import 'package:frontend/modules/main_menu/login_screen.dart';
+import 'package:frontend/modules/plant_game/mini_games/sync/sync_flutter_overlay.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:frontend/modules/plant_game/plant_screen.dart';
@@ -12,7 +13,7 @@ final router = GoRouter(
   routes: [
     GoRoute(
       path: '/',
-      redirect: (_, __) => '/menu', // ← Redirige la raíz a /menu
+      redirect: (context, state) => '/menu', // ← Redirige la raíz a /menu
     ),
     GoRoute(
       path: '/menu',
@@ -24,7 +25,14 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/plant_game',
-      builder: (context, state) => GameWidget(game: PlantGameScreen(context),),
+      builder: (context, state) => PlantGameWrapper(
+        child: GameWidget<PlantGameScreen>(
+          game: PlantGameScreen(context),
+          overlayBuilderMap: {
+            'sync': (ctx, game) => SyncFlutterOverlay(game: game),
+          },
+        ),
+      ),
     ),
     GoRoute(
    path: '/inventory',

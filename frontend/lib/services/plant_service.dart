@@ -93,9 +93,9 @@ class PlantService {
     if (reqs == null || fertNeeded == null) return plant;
 
     if (plant.sun >= reqs['sun']! && plant.water >= reqs['water']! && plant.fertilizer >= fertNeeded) {
-      if (plant.stage == PlantStage.seed) plant.stage = PlantStage.bush;
-      else if (plant.stage == PlantStage.bush) plant.stage = PlantStage.tree;
-      else if (plant.stage == PlantStage.tree) plant.stage = PlantStage.ent;
+      if (plant.stage == PlantStage.seed) { plant.stage = PlantStage.bush; }
+      else if (plant.stage == PlantStage.bush) { plant.stage = PlantStage.tree; }
+      else if (plant.stage == PlantStage.tree) { plant.stage = PlantStage.ent; }
       
       // Resetear recursos
       plant.sun = 0; plant.water = 0; plant.fertilizer = 0;

@@ -5,6 +5,7 @@ import '../../models/models.dart';
 import '../../models/tree_models.dart';
 import '../../services/local_storage_service.dart';
 import '../../services/tree_storage_service.dart';
+import '../../services/shared_tree_storage_service.dart';
 
 /// Controlador de estado global del juego de plantas.
 ///
@@ -18,6 +19,7 @@ import '../../services/tree_storage_service.dart';
 class PlantController extends ChangeNotifier {
   final LocalStorageService _authStorage = LocalStorageService();
   final TreeStorageService _treeStorage = TreeStorageService();
+  final SharedTreeStorageService _sharedStorage = SharedTreeStorageService();
   static const _uuid = Uuid();
 
   // ── Estado ────────────────────────────────────────────────────────────────
@@ -106,10 +108,9 @@ class PlantController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Persistencia ──────────────────────────────────────────────────────────
-
   /// Persiste el .tree actual en SharedPreferences aplicando la lógica de
   /// merge para preservar los campos 🔴 de Unity.
+  /// Después exporta automáticamente al archivo Documents/IMAGINATIO/Data_user.tree.
   Future<void> saveTree() async {
     if (_currentTree == null) return;
     await _treeStorage.saveTreeLocally(flutterData: _currentTree!);
@@ -117,7 +118,67 @@ class PlantController extends ChangeNotifier {
     if (_currentUser != null) {
       await _authStorage.saveUser(_currentUser!);
     }
+    // ── Auto-exportar al archivo físico compartido (silent: sin diálogos) ────
+    try {
+      await _sharedStorage.exportTree(_currentTree!, silent: true);
+    } catch (e) {
+      // No crítico: la app funciona aunque falle la exportación al archivo
+      debugPrint('[PlantController] ⚠️ Auto-export fallido: $e');
+    }
   }
+
+  /// Importa el .tree desde Documents/IMAGINATIO/ (cambios escritos por Unity)
+  /// y aplica solo los campos 🔴 de Unity preservando los 🟢 de Flutter.
+  /// Retorna `true` si se importó exitosamente.
+  Future<bool> importFromSharedStorage() async {
+    try {
+      // Backup defensivo antes de importar
+      await _sharedStorage.createBackup('pre_unity_import');
+
+      final unityData = await _sharedStorage.importTree();
+      if (unityData == null) {
+        debugPrint('[PlantController] ℹ️ No hay archivo .tree para importar.');
+        return false;
+      }
+
+      // Aplicar merge (Unity → .tree local): solo actualiza campos 🔴
+      await _treeStorage.applyUnitySync(unityData);
+
+      // Recargar el estado en memoria
+      _currentTree = await _treeStorage.loadTree();
+      if (_currentTree != null) {
+        _currentUser = _userModelFromTree(_currentTree!);
+      }
+      notifyListeners();
+      debugPrint('[PlantController] ✅ Import desde Unity aplicado.');
+      return true;
+    } catch (e) {
+      debugPrint('[PlantController] ❌ Error importando desde Unity: $e');
+      return false;
+    }
+  }
+
+  /// Abre la pantalla de Ajustes para que el usuario conceda acceso a Documents.
+  /// Retorna true si ya tenía permiso (no hace falta abrir Ajustes).
+  /// Retorna false si abrió Ajustes (el usuario debe regresar y reintentar).
+  Future<bool> requestStoragePermission() =>
+      _sharedStorage.requestPermissions();
+
+  /// Verifica si ya tiene acceso a Documents (sin mostrar diálogos).
+  Future<bool> checkStoragePermission() =>
+      _sharedStorage.checkPermissions();
+
+  /// Exporta explícitamente. Solo llamar si checkStoragePermission() == true.
+  Future<String> exportToSharedStorage() async {
+    if (_currentTree == null) return 'Sin datos para exportar.';
+    final file = await _sharedStorage.exportTree(_currentTree!, silent: false);
+    if (file == null) return 'Permisos no concedidos.';
+    return file.path;
+  }
+
+  /// Expone info del folder compartido para la UI de diagnóstico.
+  Future<SharedFolderInfo> getSharedFolderInfo() =>
+      _sharedStorage.getFolderInfo();
 
   // ── Conversiones internas ─────────────────────────────────────────────────
 
