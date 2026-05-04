@@ -86,9 +86,20 @@ class PlantState {
         water: (json['water'] ?? 0).toDouble(),
         fertilizer: (json['fertilizer'] ?? 0).toDouble(),
         isDead: json['is_dead'] ?? false,
-        lastInteraction: DateTime.parse(json['last_interaction']),
+        lastInteraction: _parseDateTime(json['last_interaction']),
         sourcesNextState: SourcesNextState.fromJson(json['sources_next_state']),
       );
+
+  /// Parseo defensivo de fechas: evita crash si [value] viene nulo o
+  /// corrupto (ej. dato malformado escrito por Unity u otro sistema).
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now().toUtc();
+    try {
+      return DateTime.parse(value as String);
+    } catch (_) {
+      return DateTime.now().toUtc();
+    }
+  }
 
   Map<String, dynamic> toJson() => {
         'plant_id': plantId,

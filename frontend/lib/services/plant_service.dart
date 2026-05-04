@@ -7,10 +7,30 @@ class PlantService {
 
   // Requisitos por planta y stage (igual que tu STAGE_REQUIREMENTS en Python)
   static final Map<String, Map<String, double>> stageRequirements = {
-    '${PlantType.solar.name}_${PlantStage.seed.name}': {'sun': 6, 'water': 2},
-    '${PlantType.solar.name}_${PlantStage.bush.name}': {'sun': 8, 'water': 4},
-    '${PlantType.solar.name}_${PlantStage.tree.name}': {'sun': 10, 'water': 6},
-    // Añadir el resto (xerofito, templado, etc.) según tu backend
+    // ── Solar ──────────────────────────────────────────────────────────────
+    '${PlantType.solar.name}_${PlantStage.seed.name}':    {'sun': 6,  'water': 2},
+    '${PlantType.solar.name}_${PlantStage.bush.name}':    {'sun': 8,  'water': 4},
+    '${PlantType.solar.name}_${PlantStage.tree.name}':    {'sun': 10, 'water': 6},
+    // ── Xerófito ───────────────────────────────────────────────────────────
+    '${PlantType.xerofito.name}_${PlantStage.seed.name}': {'sun': 4,  'water': 2},
+    '${PlantType.xerofito.name}_${PlantStage.bush.name}': {'sun': 6,  'water': 4},
+    '${PlantType.xerofito.name}_${PlantStage.tree.name}': {'sun': 8,  'water': 6},
+    // ── Templado ───────────────────────────────────────────────────────────
+    '${PlantType.templado.name}_${PlantStage.seed.name}': {'sun': 4,  'water': 4},
+    '${PlantType.templado.name}_${PlantStage.bush.name}': {'sun': 6,  'water': 6},
+    '${PlantType.templado.name}_${PlantStage.tree.name}': {'sun': 8,  'water': 8},
+    // ── Montaña ────────────────────────────────────────────────────────────
+    '${PlantType.montana.name}_${PlantStage.seed.name}':  {'sun': 2,  'water': 4},
+    '${PlantType.montana.name}_${PlantStage.bush.name}':  {'sun': 4,  'water': 6},
+    '${PlantType.montana.name}_${PlantStage.tree.name}':  {'sun': 6,  'water': 8},
+    // ── Hidro ──────────────────────────────────────────────────────────────
+    '${PlantType.hidro.name}_${PlantStage.seed.name}':    {'sun': 2,  'water': 6},
+    '${PlantType.hidro.name}_${PlantStage.bush.name}':    {'sun': 4,  'water': 8},
+    '${PlantType.hidro.name}_${PlantStage.tree.name}':    {'sun': 6,  'water': 10},
+    // ── Pasto ──────────────────────────────────────────────────────────────
+    '${PlantType.pasto.name}_${PlantStage.seed.name}':    {'sun': 3,  'water': 3},
+    '${PlantType.pasto.name}_${PlantStage.bush.name}':    {'sun': 5,  'water': 5},
+    '${PlantType.pasto.name}_${PlantStage.tree.name}':    {'sun': 7,  'water': 7},
   };
 
   static final Map<PlantStage, double> fertilizerToEvolve = {

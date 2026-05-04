@@ -24,6 +24,9 @@ import 'package:frontend/modules/plant_game/components/Button_help.dart';
 import 'package:flame/components.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:frontend/modules/plant_game/plant_logic.dart'; 
+
+
 import 'package:flame/experimental.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/widgets.dart';
@@ -56,8 +59,8 @@ class PlantGameScreen extends FlameGame {
 
     final sunGameButton = Button_sun_game(
       onPressed: () {
-          add(SunOverlay());
-       },
+        add(SunOverlay(context: context));
+      },
     );
 
     final waterGameButton = Button_water_game(
