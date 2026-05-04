@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:frontend/modules/plant_game/mini_games/compost/components/compost.dart';
 import 'package:frontend/modules/plant_game/mini_games/compost/components/panel_compost.dart';
 import 'package:frontend/modules/plant_game/mini_games/compost/components/text_compost.dart';
-import 'package:frontend/modules/plant_game/mini_games/compost/components/warning_compost.dart';
 import 'package:frontend/modules/plant_game/mini_games/compost/compost_logic.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
 import 'package:frontend/services/tree_storage_service.dart';
@@ -117,7 +116,7 @@ class CompostOverlay extends FlameGame {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CompostAlertComponent — Pantalla de resultado final.
-// Muestra el sprite warningCompost existente. Tap en cualquier parte cierra.
+// Muestra overlay unificado. Tap en cualquier parte cierra.
 // ─────────────────────────────────────────────────────────────────────────────
 class CompostAlertComponent extends PositionComponent with TapCallbacks {
   final VoidCallback onClose;
@@ -132,11 +131,45 @@ class CompostAlertComponent extends PositionComponent with TapCallbacks {
 
   @override
   Future<void> onLoad() async {
-    final compostA = warningCompost(compostAmount: compostAmount);
-    compostA
-      ..position = Vector2(size.x / 2, size.y / 2)
-      ..anchor = Anchor.center;
-    add(compostA);
+    // Fondo semitransparente
+    add(
+      RectangleComponent(
+        size: size,
+        paint: Paint()..color = const Color(0xCC000000),
+      ),
+    );
+
+    // Texto principal de resultado
+    add(
+      TextComponent(
+        text: '🌱 Composta obtenida\n+$compostAmount Unidad${compostAmount != 1 ? 'es' : ''}',
+        textRenderer: TextPaint(
+          style: const TextStyle(
+            color: Color(0xFF66FF66), // Verde claro
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            shadows: [Shadow(blurRadius: 8, color: Colors.black)],
+          ),
+        ),
+        anchor: Anchor.center,
+        position: size / 2 - Vector2(0, 20),
+      ),
+    );
+
+    // Instrucción de cierre
+    add(
+      TextComponent(
+        text: 'Toca para continuar',
+        textRenderer: TextPaint(
+          style: const TextStyle(
+            color: Color(0xAAFFFFFF),
+            fontSize: 14,
+          ),
+        ),
+        anchor: Anchor.center,
+        position: size / 2 + Vector2(0, 30),
+      ),
+    );
   }
 
   @override

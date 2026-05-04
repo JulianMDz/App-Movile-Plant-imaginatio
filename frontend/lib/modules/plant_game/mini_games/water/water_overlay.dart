@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 
 import 'package:frontend/modules/plant_game/mini_games/water/components/panel_water.dart';
 import 'package:frontend/modules/plant_game/mini_games/water/components/text_water.dart';
-import 'package:frontend/modules/plant_game/mini_games/water/components/warning_water.dart';
 import 'package:frontend/modules/plant_game/mini_games/water/components/water.dart';
 import 'package:frontend/modules/plant_game/mini_games/water/water_logic.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
@@ -118,7 +117,7 @@ class WaterOverlay extends FlameGame {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WaterAlertComponent — Pantalla de resultado final.
-// Muestra el sprite warningWater existente. Tap en cualquier parte cierra.
+// Muestra overlay unificado. Tap en cualquier parte cierra.
 // ─────────────────────────────────────────────────────────────────────────────
 class WaterAlertComponent extends PositionComponent with TapCallbacks {
   final VoidCallback onClose;
@@ -133,11 +132,45 @@ class WaterAlertComponent extends PositionComponent with TapCallbacks {
 
   @override
   Future<void> onLoad() async {
-    final waterA = warningWater(waterAmount: waterAmount);
-    waterA
-      ..position = Vector2(size.x / 2, size.y / 2)
-      ..anchor = Anchor.center;
-    add(waterA);
+    // Fondo semitransparente
+    add(
+      RectangleComponent(
+        size: size,
+        paint: Paint()..color = const Color(0xCC000000),
+      ),
+    );
+
+    // Texto principal de resultado
+    add(
+      TextComponent(
+        text: '💧 Agua obtenida\n+$waterAmount Gota${waterAmount != 1 ? 's' : ''}',
+        textRenderer: TextPaint(
+          style: const TextStyle(
+            color: Color(0xFF66CCFF),
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            shadows: [Shadow(blurRadius: 8, color: Colors.black)],
+          ),
+        ),
+        anchor: Anchor.center,
+        position: size / 2 - Vector2(0, 20),
+      ),
+    );
+
+    // Instrucción de cierre
+    add(
+      TextComponent(
+        text: 'Toca para continuar',
+        textRenderer: TextPaint(
+          style: const TextStyle(
+            color: Color(0xAAFFFFFF),
+            fontSize: 14,
+          ),
+        ),
+        anchor: Anchor.center,
+        position: size / 2 + Vector2(0, 30),
+      ),
+    );
   }
 
   @override
