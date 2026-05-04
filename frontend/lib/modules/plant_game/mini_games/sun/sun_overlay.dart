@@ -102,10 +102,9 @@ class SunOverlay extends FlameGame with TapCallbacks {
       final controller = Provider.of<PlantController>(context, listen: false);
       controller.addSun(reward);
 
-      // ② Auto-sync inmediato del archivo .tree (Regla de Oro del proyecto).
-      //    Persiste el estado modificado antes de que el overlay se cierre.
-      if (controller.currentUser != null) {
-        await _treeService.saveTreeLocally(user: controller.currentUser!);
+      // ② Auto-sync inmediato del archivo .tree (Regla de Oro del proyecto)
+      if (controller.currentTree != null) {
+        await _treeService.saveTreeLocally(flutterData: controller.currentTree!);
       }
     } catch (e) {
       debugPrint('[SunOverlay] Error en auto-sync .tree: $e');

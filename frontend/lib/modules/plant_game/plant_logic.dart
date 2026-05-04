@@ -26,11 +26,9 @@ class PlantLogic {
         // 5. AUTO-SYNC: Guardamos el .tree modificado en el almacenamiento local
         // (Replicando la función `syncInventoryToTree()` de la Web)
         try {
-          await treeService.saveTreeLocally(
-            user: controller.currentUser!, 
-            plants: controller.plants,
-            seeds: controller.seeds,
-          );
+          if (controller.currentTree != null) {
+            await treeService.saveTreeLocally(flutterData: controller.currentTree!);
+          }
           
           // 6. Feedback visual al usuario
           ScaffoldMessenger.of(context).showSnackBar(

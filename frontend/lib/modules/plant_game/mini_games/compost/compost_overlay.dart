@@ -2,24 +2,38 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
-import 'package:flame/input.dart'; // ← Para TapCallbacks
-
+import 'package:provider/provider.dart';
 
 import 'package:frontend/modules/plant_game/mini_games/compost/components/compost.dart';
 import 'package:frontend/modules/plant_game/mini_games/compost/components/panel_compost.dart';
 import 'package:frontend/modules/plant_game/mini_games/compost/components/text_compost.dart';
 import 'package:frontend/modules/plant_game/mini_games/compost/components/warning_compost.dart';
 import 'package:frontend/modules/plant_game/mini_games/compost/compost_logic.dart';
-// Importamos el servicio que maneja la lógica local (SharedPreferences)
-import 'package:frontend/services/minigame_service.dart';
+import 'package:frontend/modules/plant_game/plant_controller.dart';
+import 'package:frontend/services/tree_storage_service.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CompostOverlay — Flame overlay del minijuego de Composta
+//
+// Patrón unificado con SunOverlay y WaterOverlay:
+//   1. Recibe [BuildContext] por constructor para acceder a PlantController.
+//   2. Al terminar, llama controller.addCompost() → TreeStorageService.saveTreeLocally()
+//      (Regla de Oro: auto-sync inmediato del archivo .tree).
+// ─────────────────────────────────────────────────────────────────────────────
 class CompostOverlay extends FlameGame {
+  final BuildContext context;
+
   late CompostGrid compostGrid;
   late textCompost textComponents;
 
-  final MinigameService _minigameService = MinigameService();
   final CompostLogic logic = CompostLogic();
-  
+  final TreeStorageService _treeService = TreeStorageService();
+
+  bool _gameEndHandled = false;
+
+  CompostOverlay({required this.context});
+
+  // ── Ciclo de vida ──────────────────────────────────────────────────────────
 
   @override
   Future<void> onLoad() async {
@@ -28,85 +42,89 @@ class CompostOverlay extends FlameGame {
 
     add(panelCompost());
     add(compostGrid);
-    add(textComponents);  
+    add(textComponents);
 
     logic.start();
   }
 
   @override
-  void onGameResize(Vector2 canvasSize) {
-    super.onGameResize(canvasSize);
-
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
     compostGrid
-      ..position = canvasSize / 2
+      ..position = size / 2
       ..anchor = Anchor.center;
-
     textComponents
-      ..position = canvasSize / 2
+      ..position = size / 2
       ..anchor = Anchor.center;
-  
   }
 
+  // ── Input ──────────────────────────────────────────────────────────────────
+
   void _onCompostTapped(int row, int col, bool isCorrect) {
-  logic.onCellTap(row, col, isCorrect);
-}
+    logic.onCellTap(row, col, isCorrect);
+  }
+
+  // ── Game loop ──────────────────────────────────────────────────────────────
 
   @override
   void update(double dt) {
     super.update(dt);
-
     logic.update(dt);
-
     textComponents.updateTime(logic.timeLeft);
 
-    if (logic.shouldEndGame) {
+    if (logic.shouldEndGame && !_gameEndHandled) {
       logic.markRewardProcessed();
+      _gameEndHandled = true;
       _endMinigame();
     }
   }
 
+  // ── Recompensa y cierre ────────────────────────────────────────────────────
+
   Future<void> _endMinigame() async {
     compostGrid.state = 2;
+    final reward = logic.compostReward;
 
+    // ① Actualizar inventario en memoria via PlantController (Provider)
     try {
-      final result =
-          await _minigameService.playCompostMinigame(logic.compostReward, logic.mistakes);
+      final controller = Provider.of<PlantController>(context, listen: false);
+      controller.addCompost(reward);
 
-      _showAlert(result['message']);
+      // ② Auto-sync inmediato del archivo .tree (Regla de Oro del proyecto)
+      if (controller.currentTree != null) {
+        await _treeService.saveTreeLocally(flutterData: controller.currentTree!);
+      }
     } catch (e) {
-      print("Error al guardar recursos: $e");
+      debugPrint('[CompostOverlay] Error en auto-sync .tree: $e');
     }
+
+    // ③ Mostrar alerta de resultado (sprite existente del equipo)
+    _showAlert(reward);
   }
 
-  void _closeOverlay() {
-      removeFromParent();
-    }
-
-    void _showAlert(String message) {
-      add(
-        CompostAlertComponent
-        (message: message,
+  void _showAlert(int reward) {
+    add(
+      CompostAlertComponent(
         size: size,
         onClose: _closeOverlay,
-        compostAmount: logic.compostReward,
-        )
-      );
-    }
+        compostAmount: reward,
+      ),
+    );
   }
 
+  void _closeOverlay() => removeFromParent();
+}
 
-
-// -------------------------------------------------------------
-// ALERTA FINAL
-// -------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// CompostAlertComponent — Pantalla de resultado final.
+// Muestra el sprite warningCompost existente. Tap en cualquier parte cierra.
+// ─────────────────────────────────────────────────────────────────────────────
 class CompostAlertComponent extends PositionComponent with TapCallbacks {
-  final String message;
   final VoidCallback onClose;
   final int compostAmount;
   bool _closed = false;
 
   CompostAlertComponent({
-    required this.message,
     required Vector2 size,
     required this.onClose,
     required this.compostAmount,
@@ -114,34 +132,18 @@ class CompostAlertComponent extends PositionComponent with TapCallbacks {
 
   @override
   Future<void> onLoad() async {
-    // 👇 aquí sí funciona
     final compostA = warningCompost(compostAmount: compostAmount);
-
-    // opcional: centrarlo
     compostA
       ..position = Vector2(size.x / 2, size.y / 2)
       ..anchor = Anchor.center;
-
     add(compostA);
   }
 
-
   @override
   void onTapDown(TapDownEvent event) {
-    _closeMinigame();
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-  }
-
-  void _closeMinigame() {
     if (_closed) return;
     _closed = true;
-    onClose(); 
+    onClose();
     removeFromParent();
   }
-  
 }
-

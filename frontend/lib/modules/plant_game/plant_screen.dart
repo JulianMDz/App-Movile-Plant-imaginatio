@@ -65,13 +65,14 @@ class PlantGameScreen extends FlameGame {
 
     final waterGameButton = Button_water_game(
       onPressed: () {
-        add(WaterOverlay());
+        add(WaterOverlay(context: context));
       },
     );
     final compostGameButton = Button_compost_game(
       onPressed: () {
-        add(CompostOverlay());
-      });
+        add(CompostOverlay(context: context));
+      },
+    );
 
     final sunButton = Button_resource_sun(onPressed: () { });
     final waterButton = Button_resource_water(onPressed: () { });
