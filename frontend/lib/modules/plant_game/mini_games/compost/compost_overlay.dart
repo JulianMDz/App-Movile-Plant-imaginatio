@@ -173,28 +173,9 @@ class CompostAlertComponent extends PositionComponent with TapCallbacks {
           ),
         ),
         anchor: Anchor.center,
-        position: size / 2 + Vector2(0, fertilizerAmount > 0 ? -30 : -10),
+        position: size / 2 - Vector2(0, 10),
       ),
     );
-
-    // Texto de fertilizante convertido (solo si hay)
-    if (fertilizerAmount > 0) {
-      add(
-        TextComponent(
-          text: '✨ +$fertilizerAmount Fertilizante',
-          textRenderer: TextPaint(
-            style: const TextStyle(
-              color: Color(0xFFFFD700), // Dorado
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              shadows: [Shadow(blurRadius: 8, color: Colors.black)],
-            ),
-          ),
-          anchor: Anchor.center,
-          position: size / 2 + Vector2(0, 5),
-        ),
-      );
-    }
 
     // Instrucción de cierre
     add(
