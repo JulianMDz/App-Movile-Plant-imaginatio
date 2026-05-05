@@ -1,45 +1,37 @@
-import 'dart:ui';
-
 import 'package:flame/components.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'package:frontend/modules/plant_game/components/Animation_compost.dart';
+import 'package:frontend/modules/plant_game/plant_controller.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Button_resource_compost
+//
+// Botón para gastar Composta del inventario en la planta activa.
+// ─────────────────────────────────────────────────────────────────────────────
 class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
-  Button_resource_compost({
-    required void Function() onPressed,
+  final BuildContext context;
 
-    
-  }) : super(
+  late TextComponent _countText;
+
+  Button_resource_compost({required this.context})
+      : super(
           size: Vector2.zero(),
-          button: null,       // se inicializa luego
-          buttonDown: null,   // se inicializa luego
-          onPressed: onPressed,
+          button: null,
+          buttonDown: null,
+          onPressed: null,
         );
 
   @override
   Future<void> onLoad() async {
-    // Cargar sprites aquí
     button = await Sprite.load('Botones/Boton_RecursoAbono_02.png');
     buttonDown = await Sprite.load('Botones/Boton_RecursoAbono_01.png');
+    size = button.srcSize / 2.3;
 
-    size = button.srcSize/2.3;  
-
-  onPressed = () { 
-    final animacionCompost = Animation_compost(
-      'pasto',
-      Vector2(gameRef.size.x, gameRef.size.y),
-    )
-      ..anchor = Anchor.center
-      ..position = Vector2(
-        gameRef.size.x / 2,
-        gameRef.size.y / 2,
-      );
-    gameRef.add(animacionCompost);
-  };
-
-    final text = TextComponent(
-      text: "40", // ejemplo
+    _countText = TextComponent(
+      text: _stockText(),
       textRenderer: TextPaint(
         style: const TextStyle(
           color: Colors.white,
@@ -49,9 +41,47 @@ class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
       ),
     )
       ..anchor = Anchor.topLeft
-      ..position = Vector2(2, 6); // 🔥 esquina superior derecha
+      ..position = Vector2(2, 6);
+    add(_countText);
 
-    add(text);
-  
+    final controller = Provider.of<PlantController>(context, listen: false);
+    controller.addListener(_onControllerChange);
+
+    onPressed = _onTap;
+  }
+
+  @override
+  void onRemove() {
+    try {
+      Provider.of<PlantController>(context, listen: false)
+          .removeListener(_onControllerChange);
+    } catch (_) {}
+    super.onRemove();
+  }
+
+  String _stockText() {
+    try {
+      final c = Provider.of<PlantController>(context, listen: false);
+      return '${c.recursos.composta.cantidad}';
+    } catch (_) {
+      return '0';
+    }
+  }
+
+  void _onControllerChange() {
+    _countText.text = _stockText();
+  }
+
+  void _onTap() {
+    final controller = Provider.of<PlantController>(context, listen: false);
+    final success = controller.spendCompost();
+    if (!success) return;
+
+    final anim = Animation_compost('pasto', Vector2(gameRef.size.x, gameRef.size.y))
+      ..anchor = Anchor.center
+      ..position = Vector2(gameRef.size.x / 2, gameRef.size.y / 2);
+    gameRef.add(anim);
+
+    controller.saveTree();
   }
 }

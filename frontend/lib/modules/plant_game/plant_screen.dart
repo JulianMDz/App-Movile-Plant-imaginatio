@@ -51,9 +51,9 @@ class PlantGameScreen extends FlameGame {
     
     final panelInfo = Panel_resource_info();
 
-    final panelBar = PanelLayout()
+    final panelBar = PanelLayout(context: context)
       ..anchor = Anchor.centerLeft
-      ..position = Vector2(80, size.y/2); // columna centrada
+      ..position = Vector2(80, size.y/2);
   
 
     final sunGameButton = Button_sun_game(
@@ -73,9 +73,9 @@ class PlantGameScreen extends FlameGame {
       },
     );
 
-    final sunButton = Button_resource_sun(onPressed: () { });
-    final waterButton = Button_resource_water(onPressed: () { });
-    final compostButton = Button_resource_compost(onPressed: () { });
+    final sunButton = Button_resource_sun(context: context);
+    final waterButton = Button_resource_water(context: context);
+    final compostButton = Button_resource_compost(context: context);
 
     final button3d = Button_game_3d(onPressed: () {
       overlays.add('sync');

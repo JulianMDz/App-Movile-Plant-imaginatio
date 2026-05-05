@@ -108,6 +108,53 @@ class PlantController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Gasto de recursos en la planta activa ──────────────────────────────────────
+
+  /// Devuelve el índice de la planta activa (primera desbloqueada) o null.
+  TreePlanta? get activePlant =>
+      _currentTree?.plantas.firstWhere(
+        (p) => p.desbloqueada,
+        orElse: () => _currentTree!.plantas.first,
+      );
+
+  /// Gasta 1 unidad de sol del inventario y la aplica a la planta activa.
+  /// Retorna `true` si tenía suficiente stock.
+  bool spendSun({int amount = 1}) {
+    if (_currentTree == null) return false;
+    if (_currentTree!.recursos.sol.cantidad < amount) return false;
+    _currentTree!.recursos.sol.cantidad -= amount;
+    _currentUser?.resources.sunAmount -= amount;
+    activePlant?.recursosAplicados.sol += amount;
+    notifyListeners();
+    return true;
+  }
+
+  /// Gasta 1 unidad de agua del inventario y la aplica a la planta activa.
+  bool spendWater({int amount = 1}) {
+    if (_currentTree == null) return false;
+    if (_currentTree!.recursos.agua.cantidad < amount) return false;
+    _currentTree!.recursos.agua.cantidad -= amount;
+    _currentUser?.resources.waterAmount -= amount;
+    activePlant?.recursosAplicados.agua += amount;
+    notifyListeners();
+    return true;
+  }
+
+  /// Gasta 1 unidad de composta del inventario y la aplica a la planta activa.
+  bool spendCompost({int amount = 1}) {
+    if (_currentTree == null) return false;
+    if (_currentTree!.recursos.composta.cantidad < amount) return false;
+    _currentTree!.recursos.composta.cantidad -= amount;
+    _currentUser?.resources.compostAmount -= amount;
+    activePlant?.recursosAplicados.composta += amount;
+    notifyListeners();
+    return true;
+  }
+
+  /// Acceso rápido a los recursos aplicados de la planta activa.
+  TreeRecursosAplicados get activePlantResources =>
+      activePlant?.recursosAplicados ?? TreeRecursosAplicados();
+
   /// Persiste el .tree actual en SharedPreferences aplicando la lógica de
   /// merge para preservar los campos 🔴 de Unity.
   /// Después exporta automáticamente al archivo Documents/IMAGINATIO/Data_user.tree.

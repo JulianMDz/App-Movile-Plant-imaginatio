@@ -9,7 +9,6 @@ import 'package:frontend/modules/plant_game/mini_games/water/components/text_wat
 import 'package:frontend/modules/plant_game/mini_games/water/components/water.dart';
 import 'package:frontend/modules/plant_game/mini_games/water/water_logic.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
-import 'package:frontend/services/tree_storage_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WaterOverlay — Flame overlay del minijuego del Agua
@@ -26,7 +25,6 @@ class WaterOverlay extends FlameGame {
   late TextWater textComponents;
 
   final WaterLogic logic = WaterLogic();
-  final TreeStorageService _treeService = TreeStorageService();
 
   bool _gameEndHandled = false;
 
@@ -85,20 +83,14 @@ class WaterOverlay extends FlameGame {
     buttonWater.state = 2;
     final reward = logic.waterReward;
 
-    // ① Actualizar inventario en memoria via PlantController (Provider)
     try {
       final controller = Provider.of<PlantController>(context, listen: false);
       controller.addWater(reward);
-
-      // ② Auto-sync inmediato del archivo .tree (Regla de Oro del proyecto)
-      if (controller.currentTree != null) {
-        await _treeService.saveTreeLocally(flutterData: controller.currentTree!);
-      }
+      await controller.saveTree();
     } catch (e) {
-      debugPrint('[WaterOverlay] Error en auto-sync .tree: $e');
+      debugPrint('[WaterOverlay] Error al guardar: $e');
     }
 
-    // ③ Mostrar alerta de resultado (sprite existente del equipo)
     _showAlert(reward);
   }
 
