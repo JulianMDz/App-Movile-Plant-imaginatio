@@ -1,79 +1,121 @@
 import 'package:flame/components.dart';
-import 'package:flame/experimental.dart';
-import 'package:flame/flame.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import 'package:frontend/modules/plant_game/plant_controller.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PanelLayout — panel lateral izquierdo con 3 filas:
+//   [icono_sol]     [====barra====]
+//   [icono_agua]    [====barra====]
+//   [icono_abono]   [====barra====]
+//
+// Refleja los recursos_aplicados de la planta activa.
+// Usa posicionamiento manual (sin RowComponent/ColumnComponent anidados)
+// para evitar problemas de solapamiento con el sistema de layout de Flame.
+// ─────────────────────────────────────────────────────────────────────────────
 class PanelLayout extends PositionComponent {
+  final BuildContext context;
+
+  // ── Constantes de layout ───────────────────────────────────────────────────
+  static const double _iconSize    = 26.0;
+  static const double _barW        = 60.0;
+  static const double _barH        = 9.0;
+  static const double _gap         = 8.0;   // espacio entre icono y barra
+  static const double _rowSpacing  = 38.0;  // separación vertical entre filas
+
+  /// Máximo de recursos_aplicados representado como 100% de la barra.
+  static const double _maxRecurso  = 10.0;
+
+  // ── Componentes de barra ───────────────────────────────────────────────────
+  late BarraCarga _barraSol;
+  late BarraCarga _barraAgua;
+  late BarraCarga _barraComposta;
+
+  PanelLayout({required this.context});
+
   @override
-Future<void> onLoad() async {
-  await super.onLoad();
-  Future<PositionComponent> buildItem(String path, double progress, Color color) async {
-    final img = await Flame.images.load(path);
+  Future<void> onLoad() async {
+    final double barX = _iconSize + _gap;
+    final double barCenterY = (_iconSize - _barH) / 2; // centrar barra en fila
 
-    final sprite = SpriteComponent(
-      sprite: Sprite(img),
-      size: Sprite(img).srcSize /1.5,
+    // ── Fila Sol (y = 0) ─────────────────────────────────────────────────────
+    _barraSol = BarraCarga(fillColor: const Color.fromARGB(255, 228, 110, 0))
+      ..size     = Vector2(_barW, _barH)
+      ..position = Vector2(barX, barCenterY);
+
+    final solSprite = SpriteComponent(
+      sprite:   await Sprite.load('Iconos/Icono_Sol_01.png'),
+      size:     Vector2.all(_iconSize),
+      position: Vector2(0, 0),
     );
 
-    final barra = BarraCarga(
-      fillColor: color,
-    )
-      ..size = Vector2(70, 10)
-      ..progress = progress;
+    // ── Fila Agua (y = rowSpacing) ────────────────────────────────────────────
+    _barraAgua = BarraCarga(fillColor: const Color.fromARGB(255, 28, 87, 120))
+      ..size     = Vector2(_barW, _barH)
+      ..position = Vector2(barX, _rowSpacing + barCenterY);
 
-    return RowComponent(
-      children: [
-        PaddingComponent(
-        padding: EdgeInsets.only(right: 10),
-        child: sprite,
-      ),
-      barra],
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
+    final aguaSprite = SpriteComponent(
+      sprite:   await Sprite.load('Iconos/Icono_Agua_01.png'),
+      size:     Vector2.all(_iconSize),
+      position: Vector2(0, _rowSpacing),
     );
-     
+
+    // ── Fila Composta (y = rowSpacing*2) ─────────────────────────────────────
+    _barraComposta = BarraCarga(fillColor: const Color.fromARGB(255, 97, 47, 14))
+      ..size     = Vector2(_barW, _barH)
+      ..position = Vector2(barX, _rowSpacing * 2 + barCenterY);
+
+    final abonoSprite = SpriteComponent(
+      sprite:   await Sprite.load('Iconos/Icono_Abono_01.png'),
+      size:     Vector2.all(_iconSize),
+      position: Vector2(0, _rowSpacing * 2),
+    );
+
+    await addAll([
+      solSprite, _barraSol,
+      aguaSprite, _barraAgua,
+      abonoSprite, _barraComposta,
+    ]);
+
+    // Tamaño total del panel
+    size = Vector2(barX + _barW, _rowSpacing * 2 + _iconSize);
+
+    // Carga inicial y suscripción
+    _syncFromController();
+    Provider.of<PlantController>(context, listen: false)
+        .addListener(_syncFromController);
   }
-  
-  final item1 = await buildItem(
-    'Iconos/Icono_Sol_01.png',
-    0.8,
-    Color.fromARGB(255, 228, 110, 0),
-  );
 
-  final item2 = await buildItem(
-    'Iconos/Icono_Agua_01.png',
-    0.5,
-    Color.fromARGB(255, 28, 87, 120),
-  );
+  @override
+  void onRemove() {
+    try {
+      Provider.of<PlantController>(context, listen: false)
+          .removeListener(_syncFromController);
+    } catch (_) {}
+    super.onRemove();
+  }
 
-  final item3 = await buildItem(
-    'Iconos/Icono_Abono_01.png',
-    0.3,
-    Color.fromARGB(255, 67, 27, 4),
-  );
+  void _syncFromController() {
+    try {
+      final ctrl    = Provider.of<PlantController>(context, listen: false);
+      final applied = ctrl.activePlantResources;
 
-  final column = ColumnComponent(
-    children: [
-      PaddingComponent(
-        padding: EdgeInsets.only(bottom: 10),
-        child: item1,
-      ),
-      PaddingComponent(
-        padding: EdgeInsets.only(bottom: 10),
-        child: item2,
-      ),
-      item3,
-    ],
-  ) 
-    ..anchor = Anchor.center;
-
-  await add(column);
-}
+      _barraSol.progress =
+          (applied.sol / _maxRecurso).clamp(0.0, 1.0);
+      _barraAgua.progress =
+          (applied.agua / _maxRecurso).clamp(0.0, 1.0);
+      _barraComposta.progress =
+          (applied.composta / _maxRecurso).clamp(0.0, 1.0);
+    } catch (_) {}
+  }
 }
 
-
+// ─────────────────────────────────────────────────────────────────────────────
+// BarraCarga — barra de progreso horizontal dibujada con Canvas.
+// ─────────────────────────────────────────────────────────────────────────────
 class BarraCarga extends PositionComponent {
-  double progress = 0.5;
+  double progress = 0.0;
   Color fillColor;
 
   BarraCarga({this.fillColor = Colors.green});
@@ -82,14 +124,28 @@ class BarraCarga extends PositionComponent {
   void render(Canvas canvas) {
     super.render(canvas);
 
-    final bgPaint = Paint()..color = Color.fromARGB(255, 119, 193, 215);
-    final fillPaint = Paint()..color = fillColor;
-
-    canvas.drawRect(size.toRect(), bgPaint);
-
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.x * progress, size.y),
-      fillPaint,
+    // Fondo
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(size.toRect(), const Radius.circular(3)),
+      Paint()..color = const Color(0x99000000),
+    );
+    // Relleno
+    if (progress > 0) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.x * progress, size.y),
+          const Radius.circular(3),
+        ),
+        Paint()..color = fillColor,
+      );
+    }
+    // Borde
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(size.toRect(), const Radius.circular(3)),
+      Paint()
+        ..color = Colors.white.withOpacity(0.4)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8,
     );
   }
 }

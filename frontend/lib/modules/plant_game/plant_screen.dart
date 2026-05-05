@@ -24,8 +24,7 @@ import 'package:frontend/modules/plant_game/components/Button_help.dart';
 import 'package:flame/components.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:frontend/modules/plant_game/plant_logic.dart'; 
-
+import 'package:frontend/modules/plant_game/plant_logic.dart';
 
 import 'package:flame/experimental.dart';
 import 'package:flame/game.dart';
@@ -35,6 +34,12 @@ import 'package:frontend/modules/plant_game/mini_games/sun/sun_overlay.dart';
 import 'package:frontend/modules/plant_game/mini_games/water/water_overlay.dart';
 
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
+import 'package:frontend/modules/plant_game/plant_controller.dart';
+
 class PlantGameScreen extends FlameGame {
   final BuildContext context;
 
@@ -42,6 +47,11 @@ class PlantGameScreen extends FlameGame {
 
   @override
   Future<void> onLoad() async {
+    // Cargar datos del .tree al iniciar — sin await para no bloquear el render.
+    // Los componentes suscritos a PlantController se actualizarán solos via notifyListeners.
+    final controller = Provider.of<PlantController>(context, listen: false);
+    unawaited(controller.loadCurrentTree());
+
     add(Background());
     final helpButton = Button_help(onPressed: () { });
     final panelTitle = Panel_title();
@@ -52,10 +62,9 @@ class PlantGameScreen extends FlameGame {
     
     final panelInfo = Panel_resource_info();
 
-    final panelBar = PanelLayout()
+    final panelBar = PanelLayout(context: context)
       ..anchor = Anchor.centerLeft
-      ..position = Vector2(80, size.y/2); // columna centrada
-  
+      ..position = Vector2(8 + size.x * 0.05, size.y / 2);
 
     final sunGameButton = Button_sun_game(
       onPressed: () {
@@ -69,17 +78,20 @@ class PlantGameScreen extends FlameGame {
       },
     );
     final compostGameButton = Button_compost_game(
+      context: context,
       onPressed: () {
         add(CompostOverlay(context: context));
       },
     );
 
-    final sunButton = Button_resource_sun(onPressed: () { });
-    final waterButton = Button_resource_water(onPressed: () { });
-    final compostButton = Button_resource_compost(onPressed: () { });
+    final sunButton = Button_resource_sun(context: context);
+    final waterButton = Button_resource_water(context: context);
+    final compostButton = Button_resource_compost(context: context);
 
-    final button3d = Button_game_3d(onPressed: () { });
-    final name = textName();
+    final button3d = Button_game_3d(onPressed: () {
+      overlays.add('sync');
+    });
+    final name = textName(context: context);
     
      final rowTop = RowComponent(
       children: [
@@ -147,21 +159,20 @@ class PlantGameScreen extends FlameGame {
     final columnRight = ColumnComponent(
       children: [
         PaddingComponent(
-              padding: EdgeInsets.only(bottom: 20),
+              padding: EdgeInsets.only(bottom: 12),
               child: sunButton,
             ),
         PaddingComponent(
-              padding: EdgeInsets.only(bottom: 20),
+              padding: EdgeInsets.only(bottom: 12),
               child: waterButton,
             ),
         compostButton,
       ],
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.center,
     )
-      ..size = Vector2(size.x*0.8, 80)
       ..anchor = Anchor.centerRight
-      ..position = Vector2(size.x-20, size.y / 2);// fila arriba centrada
+      ..position = Vector2(size.x - 8, size.y / 2);
     add(columnRight);
 
     final rowDown = RowComponent(

@@ -271,6 +271,11 @@ class TreePlanta {
   /// 🟢 Flutter
   TreeRecursosAplicados recursosAplicados;
 
+  /// 🟢 Flutter — timestamp de la última interacción con la planta.
+  /// Usado para calcular el decay pasivo de recursos_aplicados.
+  /// Se actualiza cada vez que el usuario aplica un recurso.
+  DateTime lastInteraction;
+
   TreePlanta({
     required this.id,
     required this.instanceId,
@@ -281,12 +286,14 @@ class TreePlanta {
     TreeVisualEstado? visualEstado,
     TreeUso? uso,
     TreeRecursosAplicados? recursosAplicados,
+    DateTime? lastInteraction,
   })  : subid = subid ?? id,
         estado = estado ?? TreeEstado(fase: 'semilla'),
         progreso = progreso ?? const TreeProgreso(),
         visualEstado = visualEstado ?? TreeVisualEstado(),
         uso = uso ?? const TreeUso(),
-        recursosAplicados = recursosAplicados ?? TreeRecursosAplicados();
+        recursosAplicados = recursosAplicados ?? TreeRecursosAplicados(),
+        lastInteraction = lastInteraction ?? DateTime.now().toUtc();
 
   factory TreePlanta.fromJson(Map<String, dynamic> json) => TreePlanta(
         id: (json['id'] as String?) ?? '',
@@ -302,9 +309,38 @@ class TreePlanta {
         uso: TreeUso.fromJson((json['uso'] as Map<String, dynamic>?) ?? {}),
         recursosAplicados: TreeRecursosAplicados.fromJson(
             (json['recursos_aplicados'] as Map<String, dynamic>?) ?? {}),
+        lastInteraction: _parseDateTime(json['last_interaction']),
       );
 
+  /// Parseo defensivo de fechas: evita crash si viene null o corrupto.
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now().toUtc();
+    try {
+      return DateTime.parse(value as String).toUtc();
+    } catch (_) {
+      return DateTime.now().toUtc();
+    }
+  }
+
   Map<String, dynamic> toJson() => {
+        'id': id,
+        'instance_id': instanceId,
+        'subid': subid,
+        'desbloqueada': desbloqueada,
+        'estado': estado.toJson(),
+        'progreso': progreso.toJson(),
+        'visual_estado': visualEstado.toJson(),
+        'uso': uso.toJson(),
+        'recursos_aplicados': recursosAplicados.toJson(),
+        // last_interaction es INTERNO: persiste en SharedPreferences pero
+        // NO aparece en el archivo Documents exportado (véase toPublicJson).
+        'last_interaction': lastInteraction.toUtc().toIso8601String(),
+      };
+
+  /// Serializa la planta con el esquema exacto del equipo web.
+  /// Se usa para el archivo Documents/IMAGINATIO/Data_user.tree.
+  /// NO incluye last_interaction ni ningún campo interno de Flutter.
+  Map<String, dynamic> toPublicJson() => {
         'id': id,
         'instance_id': instanceId,
         'subid': subid,
@@ -406,5 +442,22 @@ class TreeData {
         ? const JsonEncoder.withIndent('  ')
         : const JsonEncoder();
     return encoder.convert(toJson());
+  }
+
+  /// Serializa con el esquema exacto del equipo web (sin campos internos).
+  /// • Usa [TreePlanta.toPublicJson()] en cada planta (omite last_interaction).
+  /// • Es el método que debe usar [SharedTreeStorageService.exportTree()]
+  ///   para escribir el archivo Documents/IMAGINATIO/Data_user.tree.
+  String toPublicJsonString({bool pretty = true}) {
+    final encoder = pretty
+        ? const JsonEncoder.withIndent('  ')
+        : const JsonEncoder();
+    return encoder.convert({
+      'version': version,
+      'usuario': usuario.toJson(),
+      'recursos': recursos.toJson(),
+      'plantas': plantas.map((p) => p.toPublicJson()).toList(),
+      'semillas': semillas.map((s) => s.toJson()).toList(),
+    });
   }
 }

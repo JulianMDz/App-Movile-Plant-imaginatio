@@ -5,6 +5,7 @@ import '../../models/models.dart';
 import '../../models/tree_models.dart';
 import '../../services/local_storage_service.dart';
 import '../../services/tree_storage_service.dart';
+import '../../services/shared_tree_storage_service.dart';
 
 /// Controlador de estado global del juego de plantas.
 ///
@@ -18,6 +19,7 @@ import '../../services/tree_storage_service.dart';
 class PlantController extends ChangeNotifier {
   final LocalStorageService _authStorage = LocalStorageService();
   final TreeStorageService _treeStorage = TreeStorageService();
+  final SharedTreeStorageService _sharedStorage = SharedTreeStorageService();
   static const _uuid = Uuid();
 
   // ── Estado ────────────────────────────────────────────────────────────────
@@ -53,7 +55,8 @@ class PlantController extends ChangeNotifier {
       _currentTree = await _treeStorage.loadTree();
 
       if (_currentTree != null) {
-        // Sincronizar UserModel legacy desde el TreeData
+        _ensureDefaultPlant();          // garantiza que siempre haya una planta activa
+        applyPassiveDecay();            // aplica decay antes de mostrar estado
         _currentUser = _userModelFromTree(_currentTree!);
         notifyListeners();
         return;
@@ -66,9 +69,95 @@ class PlantController extends ChangeNotifier {
       if (_currentUser == null) return;
 
       _currentTree = _treeFromUserModel(_currentUser!);
+      _ensureDefaultPlant();            // garantiza planta por defecto también en fallback
       notifyListeners();
     } catch (e) {
       debugPrint('[PlantController] Error al cargar datos: $e');
+    }
+  }
+
+  /// Asegura que el tree siempre tenga al menos una planta pasto desbloqueada.
+  ///
+  /// Si ya existe una planta con [id] == 'pasto' y [desbloqueada] == true,
+  /// no hace nada. Si no hay ninguna, inserta la planta por defecto antes
+  /// de que cualquier otra lógica la necesite (decay, spendXxx, etc.).
+  void _ensureDefaultPlant() {
+    if (_currentTree == null) return;
+
+    final hasActivePasto = _currentTree!.plantas.any(
+      (p) => p.id == 'pasto' && p.desbloqueada && p.estado.fase != 'muerto',
+    );
+
+    if (!hasActivePasto) {
+      final defaultPasto = TreePlanta(
+        id: 'pasto',
+        instanceId: _uuid.v4(),   // UUID único e inmutable
+        subid: 'pasto',
+        desbloqueada: true,
+        estado: TreeEstado(fase: 'semilla'),
+        recursosAplicados: TreeRecursosAplicados(),
+        lastInteraction: DateTime.now().toUtc(),
+      );
+      _currentTree!.plantas.add(defaultPasto);
+      debugPrint('[PlantController] 🌱 Planta pasto por defecto añadida al tree.');
+    }
+  }
+
+  // ── Decay pasivo (dominio 🟢 Flutter) ─────────────────────────────────
+
+  /// Intervalo de decay: cada 10 minutos se pierde 1 unidad de agua y sol.
+  static const int _decayIntervalMin = 10;
+
+  /// Calcula cuántos intervalos de 10 min pasaron y descuenta recursos_aplicados.
+  ///
+  /// Reglas:
+  ///   • Agua y Sol: −1 por cada 10 min transcurridos desde lastInteraction.
+  ///   • Si agua ≤0 O sol ≤0: estado.fase = 'muerto'.
+  ///   • Composta: NO decae (el usuario la acumula y aplica manualmente).
+  ///   • Plantas ya muertas o no desbloqueadas: se omiten.
+  ///
+  /// Se llama al cargar la sesión y al importar datos de Unity.
+  void applyPassiveDecay() {
+    if (_currentTree == null) return;
+    final now = DateTime.now().toUtc();
+    bool changed = false;
+
+    for (final plant in _currentTree!.plantas) {
+      if (!plant.desbloqueada) continue;
+      if (plant.estado.fase == 'muerto') continue;
+
+      final minutesPassed =
+          now.difference(plant.lastInteraction).inMinutes;
+      if (minutesPassed < _decayIntervalMin) continue;
+
+      final intervals = minutesPassed ~/ _decayIntervalMin;
+
+      // Descontar agua y sol aplicados (no el inventario del usuario)
+      plant.recursosAplicados.agua =
+          (plant.recursosAplicados.agua - intervals).clamp(0, 9999);
+      plant.recursosAplicados.sol =
+          (plant.recursosAplicados.sol - intervals).clamp(0, 9999);
+
+      // Condición de muerte: sin agua O sin sol
+      if (plant.recursosAplicados.agua <= 0 || plant.recursosAplicados.sol <= 0) {
+        plant.estado.fase = 'muerto';
+        debugPrint(
+          '[PlantController] 🚨 Planta ${plant.id} ha muerto por falta de recursos.'
+        );
+      }
+
+      // Avanzar lastInteraction hasta el último intervalo completo procesado
+      plant.lastInteraction = plant.lastInteraction.add(
+        Duration(minutes: intervals * _decayIntervalMin),
+      );
+
+      changed = true;
+    }
+
+    if (changed) {
+      debugPrint('[PlantController] ⏳ Decay pasivo aplicado.');
+      // No llamamos saveTree() aquí para no bloquear la carga inicial;
+      // el caller debe hacerlo si lo necesita persistir inmediatamente.
     }
   }
 
@@ -106,10 +195,77 @@ class PlantController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Persistencia ──────────────────────────────────────────────────────────
+  // ── Gasto de recursos en la planta activa ──────────────────────────────────────
+
+  /// Retorna la primera planta desbloqueada y viva, o null si no hay ninguna.
+  TreePlanta? get activePlant {
+    if (_currentTree == null || _currentTree!.plantas.isEmpty) return null;
+    try {
+      return _currentTree!.plantas.firstWhere(
+        (p) => p.desbloqueada && p.estado.fase != 'muerto',
+      );
+    } catch (_) {
+      // No hay planta viva desbloqueada
+      return null;
+    }
+  }
+
+  /// Gasta [amount] unidades de sol del inventario.
+  /// Retorna `true` si había stock (la animación se muestra).
+  /// Si hay una planta activa viva, también aplica los recursos a ella.
+  bool spendSun({int amount = 1}) {
+    if (_currentTree == null) return false;
+    if (_currentTree!.recursos.sol.cantidad < amount) return false;
+    // Descontar inventario
+    _currentTree!.recursos.sol.cantidad -= amount;
+    _currentUser?.resources.sunAmount -= amount;
+    // Aplicar a planta activa si existe (opcional)
+    final plant = activePlant;
+    if (plant != null) {
+      plant.recursosAplicados.sol += amount;
+      plant.lastInteraction = DateTime.now().toUtc();
+    }
+    notifyListeners();
+    return true; // siempre true si hay stock → animación siempre se dispara
+  }
+
+  /// Gasta [amount] unidades de agua del inventario.
+  bool spendWater({int amount = 1}) {
+    if (_currentTree == null) return false;
+    if (_currentTree!.recursos.agua.cantidad < amount) return false;
+    _currentTree!.recursos.agua.cantidad -= amount;
+    _currentUser?.resources.waterAmount -= amount;
+    final plant = activePlant;
+    if (plant != null) {
+      plant.recursosAplicados.agua += amount;
+      plant.lastInteraction = DateTime.now().toUtc();
+    }
+    notifyListeners();
+    return true;
+  }
+
+  /// Gasta [amount] unidades de composta del inventario.
+  bool spendCompost({int amount = 1}) {
+    if (_currentTree == null) return false;
+    if (_currentTree!.recursos.composta.cantidad < amount) return false;
+    _currentTree!.recursos.composta.cantidad -= amount;
+    _currentUser?.resources.compostAmount -= amount;
+    final plant = activePlant;
+    if (plant != null) {
+      plant.recursosAplicados.composta += amount;
+      // Composta no reinicia el timer de decay
+    }
+    notifyListeners();
+    return true;
+  }
+
+  /// Acceso rápido a los recursos aplicados de la planta activa.
+  TreeRecursosAplicados get activePlantResources =>
+      activePlant?.recursosAplicados ?? TreeRecursosAplicados();
 
   /// Persiste el .tree actual en SharedPreferences aplicando la lógica de
   /// merge para preservar los campos 🔴 de Unity.
+  /// Después exporta automáticamente al archivo Documents/IMAGINATIO/Data_user.tree.
   Future<void> saveTree() async {
     if (_currentTree == null) return;
     await _treeStorage.saveTreeLocally(flutterData: _currentTree!);
@@ -117,7 +273,69 @@ class PlantController extends ChangeNotifier {
     if (_currentUser != null) {
       await _authStorage.saveUser(_currentUser!);
     }
+    // ── Auto-exportar al archivo físico compartido (silent: sin diálogos) ────
+    try {
+      await _sharedStorage.exportTree(_currentTree!, silent: true);
+    } catch (e) {
+      // No crítico: la app funciona aunque falle la exportación al archivo
+      debugPrint('[PlantController] ⚠️ Auto-export fallido: $e');
+    }
   }
+
+  /// Importa el .tree desde Documents/IMAGINATIO/ (cambios escritos por Unity)
+  /// y aplica solo los campos 🔴 de Unity preservando los 🟢 de Flutter.
+  /// Retorna `true` si se importó exitosamente.
+  Future<bool> importFromSharedStorage() async {
+    try {
+      // Backup defensivo antes de importar
+      await _sharedStorage.createBackup('pre_unity_import');
+
+      final unityData = await _sharedStorage.importTree();
+      if (unityData == null) {
+        debugPrint('[PlantController] ℹ️ No hay archivo .tree para importar.');
+        return false;
+      }
+
+      // Aplicar merge (Unity → .tree local): solo actualiza campos 🔴
+      await _treeStorage.applyUnitySync(unityData);
+
+      // Recargar el estado en memoria
+      _currentTree = await _treeStorage.loadTree();
+      if (_currentTree != null) {
+        // Aplicar decay pasivo tras el import (igual que al cargar la sesión)
+        applyPassiveDecay();
+        _currentUser = _userModelFromTree(_currentTree!);
+      }
+      notifyListeners();
+      debugPrint('[PlantController] ✅ Import desde Unity aplicado.');
+      return true;
+    } catch (e) {
+      debugPrint('[PlantController] ❌ Error importando desde Unity: $e');
+      return false;
+    }
+  }
+
+  /// Abre la pantalla de Ajustes para que el usuario conceda acceso a Documents.
+  /// Retorna true si ya tenía permiso (no hace falta abrir Ajustes).
+  /// Retorna false si abrió Ajustes (el usuario debe regresar y reintentar).
+  Future<bool> requestStoragePermission() =>
+      _sharedStorage.requestPermissions();
+
+  /// Verifica si ya tiene acceso a Documents (sin mostrar diálogos).
+  Future<bool> checkStoragePermission() =>
+      _sharedStorage.checkPermissions();
+
+  /// Exporta explícitamente. Solo llamar si checkStoragePermission() == true.
+  Future<String> exportToSharedStorage() async {
+    if (_currentTree == null) return 'Sin datos para exportar.';
+    final file = await _sharedStorage.exportTree(_currentTree!, silent: false);
+    if (file == null) return 'Permisos no concedidos.';
+    return file.path;
+  }
+
+  /// Expone info del folder compartido para la UI de diagnóstico.
+  Future<SharedFolderInfo> getSharedFolderInfo() =>
+      _sharedStorage.getFolderInfo();
 
   // ── Conversiones internas ─────────────────────────────────────────────────
 

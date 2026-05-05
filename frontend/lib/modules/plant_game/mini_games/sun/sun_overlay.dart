@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:frontend/modules/plant_game/mini_games/sun/components/panel_sun.dart';
 import 'package:frontend/modules/plant_game/mini_games/sun/sun_logic.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
-import 'package:frontend/services/tree_storage_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SunOverlay — Flame overlay del minijuego del Sol
@@ -23,7 +22,6 @@ class SunOverlay extends FlameGame with TapCallbacks {
   final BuildContext context;
 
   final SunLogic _logic = SunLogic();
-  final TreeStorageService _treeService = TreeStorageService();
 
   late PanelSun _panel;
   late _ClicksHud _clicksHud;
@@ -96,21 +94,16 @@ class SunOverlay extends FlameGame with TapCallbacks {
     final reward = _logic.sunReward;
     final tierName = _logic.currentTier.label;
 
-    // ① Actualizar inventario en memoria via PlantController (Provider).
-    //    Solo modifica resources.sunAmount — dominio exclusivo Flutter/Web.
     try {
       final controller = Provider.of<PlantController>(context, listen: false);
+      // addSun actualiza memoria; saveTree() persiste en SharedPreferences
+      // Y exporta al archivo físico si tiene permiso (Regla de Oro).
       controller.addSun(reward);
-
-      // ② Auto-sync inmediato del archivo .tree (Regla de Oro del proyecto)
-      if (controller.currentTree != null) {
-        await _treeService.saveTreeLocally(flutterData: controller.currentTree!);
-      }
+      await controller.saveTree();
     } catch (e) {
-      debugPrint('[SunOverlay] Error en auto-sync .tree: $e');
+      debugPrint('[SunOverlay] Error al guardar: $e');
     }
 
-    // ③ Mostrar pantalla de resultado
     _showResult(reward: reward, tierName: tierName);
   }
 
