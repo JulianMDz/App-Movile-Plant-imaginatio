@@ -105,7 +105,8 @@ class SharedTreeStorageService {
 
     try {
       final file = await getTreeFile();
-      final jsonStr = tree.toJsonString(pretty: true);
+      // Esquema público del equipo web: sin campos internos de Flutter
+      final jsonStr = tree.toPublicJsonString(pretty: true);
       await file.writeAsString(jsonStr, flush: true);
 
       await _saveMetadata({

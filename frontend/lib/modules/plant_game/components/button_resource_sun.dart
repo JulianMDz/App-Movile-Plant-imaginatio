@@ -39,13 +39,14 @@ class Button_resource_sun extends SpriteButtonComponent with HasGameRef {
       textRenderer: TextPaint(
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 9,
+          fontSize: 8,
           fontFamily: 'Press Start 2P',
+          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
         ),
       ),
     )
       ..anchor = Anchor.topLeft
-      ..position = Vector2(2, 6);
+      ..position = Vector2(2, 2);
     add(_countText);
 
     // Suscribirse a cambios

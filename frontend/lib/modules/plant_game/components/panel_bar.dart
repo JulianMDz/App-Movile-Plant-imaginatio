@@ -1,107 +1,112 @@
 import 'package:flame/components.dart';
-import 'package:flame/experimental.dart';
-import 'package:flame/flame.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:frontend/modules/plant_game/plant_controller.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PanelLayout — columna lateral izquierda con las barras de recursos
-//               de la planta activa (Sol, Agua, Composta).
+// PanelLayout — panel lateral izquierdo con 3 filas:
+//   [icono_sol]     [====barra====]
+//   [icono_agua]    [====barra====]
+//   [icono_abono]   [====barra====]
 //
-// Lee los recursos_aplicados de la planta activa desde PlantController.
-// Se suscribe a notifyListeners() para actualizar automáticamente en tiempo real.
+// Refleja los recursos_aplicados de la planta activa.
+// Usa posicionamiento manual (sin RowComponent/ColumnComponent anidados)
+// para evitar problemas de solapamiento con el sistema de layout de Flame.
 // ─────────────────────────────────────────────────────────────────────────────
 class PanelLayout extends PositionComponent {
   final BuildContext context;
 
+  // ── Constantes de layout ───────────────────────────────────────────────────
+  static const double _iconSize    = 26.0;
+  static const double _barW        = 60.0;
+  static const double _barH        = 9.0;
+  static const double _gap         = 8.0;   // espacio entre icono y barra
+  static const double _rowSpacing  = 38.0;  // separación vertical entre filas
+
+  /// Máximo de recursos_aplicados representado como 100% de la barra.
+  static const double _maxRecurso  = 10.0;
+
+  // ── Componentes de barra ───────────────────────────────────────────────────
   late BarraCarga _barraSol;
   late BarraCarga _barraAgua;
   late BarraCarga _barraComposta;
-
-  /// Máximo de recursos aplicados representado como 100% de la barra.
-  /// Ajustar según la lógica de negocio (ej: máximo 100 unidades por tipo).
-  static const double _maxRecurso = 100.0;
 
   PanelLayout({required this.context});
 
   @override
   Future<void> onLoad() async {
-    await super.onLoad();
+    final double barX = _iconSize + _gap;
+    final double barCenterY = (_iconSize - _barH) / 2; // centrar barra en fila
 
-    Future<PositionComponent> buildItem(
-      String path,
-      BarraCarga barra,
-    ) async {
-      final img = await Flame.images.load(path);
-      final sprite = SpriteComponent(
-        sprite: Sprite(img),
-        size: Sprite(img).srcSize / 1.5,
-      )..anchor = Anchor.centerLeft;
+    // ── Fila Sol (y = 0) ─────────────────────────────────────────────────────
+    _barraSol = BarraCarga(fillColor: const Color.fromARGB(255, 228, 110, 0))
+      ..size     = Vector2(_barW, _barH)
+      ..position = Vector2(barX, barCenterY);
 
-      barra
-        ..size = Vector2(70, 10)
-        ..anchor = Anchor.centerLeft;
+    final solSprite = SpriteComponent(
+      sprite:   await Sprite.load('Iconos/Icono_Sol_01.png'),
+      size:     Vector2.all(_iconSize),
+      position: Vector2(0, 0),
+    );
 
-      return RowComponent(
-        children: [
-          PaddingComponent(padding: const EdgeInsets.only(right: 10), child: sprite),
-          barra,
-        ],
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-      );
-    }
+    // ── Fila Agua (y = rowSpacing) ────────────────────────────────────────────
+    _barraAgua = BarraCarga(fillColor: const Color.fromARGB(255, 28, 87, 120))
+      ..size     = Vector2(_barW, _barH)
+      ..position = Vector2(barX, _rowSpacing + barCenterY);
 
-    _barraSol = BarraCarga(fillColor: const Color.fromARGB(255, 228, 110, 0));
-    _barraAgua = BarraCarga(fillColor: const Color.fromARGB(255, 28, 87, 120));
-    _barraComposta = BarraCarga(fillColor: const Color.fromARGB(255, 67, 27, 4));
+    final aguaSprite = SpriteComponent(
+      sprite:   await Sprite.load('Iconos/Icono_Agua_01.png'),
+      size:     Vector2.all(_iconSize),
+      position: Vector2(0, _rowSpacing),
+    );
 
-    final itemSol = await buildItem('Iconos/Icono_Sol_01.png', _barraSol);
-    final itemAgua = await buildItem('Iconos/Icono_Agua_01.png', _barraAgua);
-    final itemComposta = await buildItem('Iconos/Icono_Abono_01.png', _barraComposta);
+    // ── Fila Composta (y = rowSpacing*2) ─────────────────────────────────────
+    _barraComposta = BarraCarga(fillColor: const Color.fromARGB(255, 97, 47, 14))
+      ..size     = Vector2(_barW, _barH)
+      ..position = Vector2(barX, _rowSpacing * 2 + barCenterY);
 
-    final column = ColumnComponent(
-      children: [
-        PaddingComponent(padding: const EdgeInsets.only(bottom: 10), child: itemSol),
-        PaddingComponent(padding: const EdgeInsets.only(bottom: 10), child: itemAgua),
-        itemComposta,
-      ],
-    )..anchor = Anchor.center;
+    final abonoSprite = SpriteComponent(
+      sprite:   await Sprite.load('Iconos/Icono_Abono_01.png'),
+      size:     Vector2.all(_iconSize),
+      position: Vector2(0, _rowSpacing * 2),
+    );
 
-    await add(column);
+    await addAll([
+      solSprite, _barraSol,
+      aguaSprite, _barraAgua,
+      abonoSprite, _barraComposta,
+    ]);
 
-    // Carga inicial
+    // Tamaño total del panel
+    size = Vector2(barX + _barW, _rowSpacing * 2 + _iconSize);
+
+    // Carga inicial y suscripción
     _syncFromController();
-
-    // Suscribirse a cambios del PlantController
-    final controller = Provider.of<PlantController>(context, listen: false);
-    controller.addListener(_syncFromController);
+    Provider.of<PlantController>(context, listen: false)
+        .addListener(_syncFromController);
   }
 
   @override
   void onRemove() {
-    // Desuscribirse al destruir el componente
     try {
-      final controller = Provider.of<PlantController>(context, listen: false);
-      controller.removeListener(_syncFromController);
+      Provider.of<PlantController>(context, listen: false)
+          .removeListener(_syncFromController);
     } catch (_) {}
     super.onRemove();
   }
 
-  /// Actualiza las barras con los valores actuales del PlantController.
   void _syncFromController() {
     try {
-      final controller = Provider.of<PlantController>(context, listen: false);
-      final aplicados = controller.activePlantResources;
+      final ctrl    = Provider.of<PlantController>(context, listen: false);
+      final applied = ctrl.activePlantResources;
 
       _barraSol.progress =
-          (aplicados.sol / _maxRecurso).clamp(0.0, 1.0);
+          (applied.sol / _maxRecurso).clamp(0.0, 1.0);
       _barraAgua.progress =
-          (aplicados.agua / _maxRecurso).clamp(0.0, 1.0);
+          (applied.agua / _maxRecurso).clamp(0.0, 1.0);
       _barraComposta.progress =
-          (aplicados.composta / _maxRecurso).clamp(0.0, 1.0);
+          (applied.composta / _maxRecurso).clamp(0.0, 1.0);
     } catch (_) {}
   }
 }
@@ -119,13 +124,28 @@ class BarraCarga extends PositionComponent {
   void render(Canvas canvas) {
     super.render(canvas);
 
-    final bgPaint = Paint()..color = const Color.fromARGB(255, 119, 193, 215);
-    final fillPaint = Paint()..color = fillColor;
-
-    canvas.drawRect(size.toRect(), bgPaint);
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.x * progress, size.y),
-      fillPaint,
+    // Fondo
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(size.toRect(), const Radius.circular(3)),
+      Paint()..color = const Color(0x99000000),
+    );
+    // Relleno
+    if (progress > 0) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.x * progress, size.y),
+          const Radius.circular(3),
+        ),
+        Paint()..color = fillColor,
+      );
+    }
+    // Borde
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(size.toRect(), const Radius.circular(3)),
+      Paint()
+        ..color = Colors.white.withOpacity(0.4)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8,
     );
   }
 }

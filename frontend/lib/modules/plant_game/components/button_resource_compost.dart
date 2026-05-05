@@ -35,13 +35,14 @@ class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
       textRenderer: TextPaint(
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 9,
+          fontSize: 7,
           fontFamily: 'Press Start 2P',
+          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
         ),
       ),
     )
       ..anchor = Anchor.topLeft
-      ..position = Vector2(2, 6);
+      ..position = Vector2(2, 2);
     add(_countText);
 
     final controller = Provider.of<PlantController>(context, listen: false);
@@ -59,12 +60,17 @@ class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
     super.onRemove();
   }
 
+  /// Muestra el progreso de composta hacia el siguiente fertilizante.
+  /// Formato: "X/4" donde X = cantidad actual (0–3 residual).
   String _stockText() {
     try {
       final c = Provider.of<PlantController>(context, listen: false);
-      return '${c.recursos.composta.cantidad}';
+      final cantidad = c.recursos.composta.cantidad;
+      // El inventario siempre guarda el residuo (0-3) tras la conversión.
+      // Mostramos cuánto falta para completar el siguiente bloque de 4.
+      return '${cantidad % 4}/4';
     } catch (_) {
-      return '0';
+      return '0/4';
     }
   }
 

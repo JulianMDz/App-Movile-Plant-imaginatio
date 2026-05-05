@@ -80,25 +80,52 @@ class CompostOverlay extends FlameGame {
 
   Future<void> _endMinigame() async {
     compostGrid.state = 2;
-    final reward = logic.compostReward;
+    final compostGained = logic.compostReward; // 0 a 4
+
+    int fertilizerGained = 0;
 
     try {
       final controller = Provider.of<PlantController>(context, listen: false);
-      controller.addCompost(reward);
+
+      // Conversión: 4 composta acumulada (global) = 1 fertilizante
+      // Se suma la compost ganada al inventario actual y se convierten
+      // los bloques completos de 4 en fertilizante.
+      const int compostPerFertilizer = 4;
+
+      final totalCompost =
+          controller.recursos.composta.cantidad + compostGained;
+      fertilizerGained = totalCompost ~/ compostPerFertilizer;
+      final remainingCompost = totalCompost % compostPerFertilizer;
+
+      // Actualizar inventario: composta residual + fertilizante ganado
+      // Restablecer composta al residuo
+      final delta = remainingCompost - controller.recursos.composta.cantidad;
+      if (delta >= 0) {
+        controller.addCompost(delta);
+      } else {
+        // Se consumió composta existente; ajustar con cantidad neta
+        controller.addCompost(compostGained); // suma lo ganado hoy
+      }
+
+      if (fertilizerGained > 0) {
+        controller.addFertilizer(fertilizerGained);
+      }
+
       await controller.saveTree();
     } catch (e) {
       debugPrint('[CompostOverlay] Error al guardar: $e');
     }
 
-    _showAlert(reward);
+    _showAlert(compostGained, fertilizerGained);
   }
 
-  void _showAlert(int reward) {
+  void _showAlert(int compostGained, int fertilizerGained) {
     add(
       CompostAlertComponent(
         size: size,
         onClose: _closeOverlay,
-        compostAmount: reward,
+        compostAmount: compostGained,
+        fertilizerAmount: fertilizerGained,
       ),
     );
   }
@@ -113,12 +140,14 @@ class CompostOverlay extends FlameGame {
 class CompostAlertComponent extends PositionComponent with TapCallbacks {
   final VoidCallback onClose;
   final int compostAmount;
+  final int fertilizerAmount;
   bool _closed = false;
 
   CompostAlertComponent({
     required Vector2 size,
     required this.onClose,
     required this.compostAmount,
+    this.fertilizerAmount = 0,
   }) : super(size: size);
 
   @override
@@ -131,22 +160,41 @@ class CompostAlertComponent extends PositionComponent with TapCallbacks {
       ),
     );
 
-    // Texto principal de resultado
+    // Texto de composta ganada
     add(
       TextComponent(
-        text: '🌱 Composta obtenida\n+$compostAmount Unidad${compostAmount != 1 ? 'es' : ''}',
+        text: '🌱 +$compostAmount Composta',
         textRenderer: TextPaint(
           style: const TextStyle(
-            color: Color(0xFF66FF66), // Verde claro
-            fontSize: 26,
+            color: Color(0xFF66FF66),
+            fontSize: 22,
             fontWeight: FontWeight.bold,
             shadows: [Shadow(blurRadius: 8, color: Colors.black)],
           ),
         ),
         anchor: Anchor.center,
-        position: size / 2 - Vector2(0, 20),
+        position: size / 2 + Vector2(0, fertilizerAmount > 0 ? -30 : -10),
       ),
     );
+
+    // Texto de fertilizante convertido (solo si hay)
+    if (fertilizerAmount > 0) {
+      add(
+        TextComponent(
+          text: '✨ +$fertilizerAmount Fertilizante',
+          textRenderer: TextPaint(
+            style: const TextStyle(
+              color: Color(0xFFFFD700), // Dorado
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              shadows: [Shadow(blurRadius: 8, color: Colors.black)],
+            ),
+          ),
+          anchor: Anchor.center,
+          position: size / 2 + Vector2(0, 5),
+        ),
+      );
+    }
 
     // Instrucción de cierre
     add(
@@ -159,7 +207,7 @@ class CompostAlertComponent extends PositionComponent with TapCallbacks {
           ),
         ),
         anchor: Anchor.center,
-        position: size / 2 + Vector2(0, 30),
+        position: size / 2 + Vector2(0, fertilizerAmount > 0 ? 50 : 30),
       ),
     );
   }
