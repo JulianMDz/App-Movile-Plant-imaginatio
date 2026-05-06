@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:frontend/modules/main_menu/components/loginComponent.dart';
 import 'package:frontend/services/local_storage_service.dart';
@@ -71,6 +72,20 @@ class _LoginOverlayState extends State<LoginOverlay> {
     }
   }
 
+  void _clearSessionDebug() async {
+    final authStorage = LocalStorageService();
+    final treeStorage = TreeStorageService();
+
+    await treeStorage.clearTree();
+    await authStorage.clearSession();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sesión de debug reiniciada')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -84,39 +99,57 @@ class _LoginOverlayState extends State<LoginOverlay> {
         game: LoginScreen(widget.contextApp, onLogin: _handleLogin),
 
         // 🔥 AQUÍ VA TU CÓDIGO
-        overlayBuilderMap: {
+          overlayBuilderMap: {
           'input': (context, game) {
-            return Stack(
-              children: [
-                Positioned(
-                  left: MediaQuery.of(context).size.width / 2 - 125,
-                  top: MediaQuery.of(context).size.height / 2 - 20,
-                  child: SizedBox(
-                    width: 250,
-                    child: TextField(
-                      controller: _nameController,
-                      style: const TextStyle(
-                        fontFamily: 'Press Start 2P',
-                        fontSize: 12,
-                        color: Colors.black,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: 'Escribe tu nombre...',
-                        filled: true,
-                        fillColor: Colors.transparent,
-                        border: InputBorder.none,
-                      ),
-                      onSubmitted: (_) => _handleLogin(),
-                    ),
+            // Align centra el TextField en pantalla, igual que el panel del juego.
+            // Ajusta el offset Y si tu panel no está exactamente centrado.
+            return Align(
+              alignment: const Alignment(0, -0.1), // X=centro, Y=-0.1 sube más para coincidir con el panel
+              child: SizedBox(
+                width: 250,
+                child: TextField(
+                  controller: _nameController,
+                  style: const TextStyle(
+                    fontFamily: 'Press Start 2P',
+                    fontSize: 12,
+                    color: Colors.black,
                   ),
+                  decoration: const InputDecoration(
+                    hintText: 'Escribe tu nombre...',
+                    filled: true,
+                    fillColor: Colors.transparent,
+                    border: InputBorder.none,
+                  ),
+                  onSubmitted: (_) => _handleLogin(),
                 ),
-              ],
+              ),
             );
           },
+          'debug_clear': (context, game) {
+            if (kDebugMode) {
+              // Positioned necesita un Stack padre — el overlay builder debe
+              // retornar un widget raíz completo, no un Positioned suelto.
+              return Stack(
+                children: [
+                  Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: TextButton(
+                      onPressed: _clearSessionDebug,
+                      child: const Text(
+                        '🔧 Debug Reset',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return const SizedBox.shrink();
+          },
         },
-
         // 🔥 y asegúrate de esto
-        initialActiveOverlays: const ['input'],
+        initialActiveOverlays: const ['input', 'debug_clear'],
       ),
     );
   }

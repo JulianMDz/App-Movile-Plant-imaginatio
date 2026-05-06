@@ -23,16 +23,9 @@ void main() async {
   bool isUserRegistered = false;
 
   if (sessionId != null) {
-    // 1. Verificar si el .tree existe y tiene un nombre de usuario
     final tree = await treeStorage.loadTree();
     if (tree != null && tree.usuario.nombre.trim().isNotEmpty) {
       isUserRegistered = true;
-    } else {
-      // 2. Fallback: Verificar si el usuario legado existe y tiene nombre
-      final user = await authStorage.getUser(sessionId);
-      if (user != null && user.username.trim().isNotEmpty) {
-        isUserRegistered = true;
-      }
     }
   }
 
