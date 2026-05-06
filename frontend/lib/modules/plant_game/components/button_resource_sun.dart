@@ -52,9 +52,10 @@ class Button_resource_sun extends SpriteButtonComponent with HasGameRef {
 
     
     final text = TextComponent(
-      text: "40", // ejemplo
-    size = button.srcSize / 2.3;
-
+  text: "40",
+)
+  ..size = button.srcSize / 2.3;
+    
     // Contador de stock disponible
     _countText = TextComponent(
       text: _stockText(),

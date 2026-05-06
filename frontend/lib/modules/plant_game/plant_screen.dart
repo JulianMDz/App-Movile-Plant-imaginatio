@@ -89,15 +89,10 @@ class PlantGameScreen extends FlameGame {
       ..anchor = Anchor.centerLeft
       ..position = Vector2(80, size.y / 2);
 
-    // Botones de minijuego — recolección
-      ..position = Vector2(8 + size.x * 0.05, size.y / 2);
-
     final sunGameButton = Button_sun_game(
       onPressed: () {
         AudioManager.recolectarSoles();
         AudioManager.miniGames();
-        add(SunOverlay());
-      },
         add(SunOverlay(context: context));
       },
     );
@@ -117,7 +112,6 @@ class PlantGameScreen extends FlameGame {
         AudioManager.miniGames();
         add(CompostOverlay(context: context));
       },
-    ,
     );
 
     final sunButton = Button_resource_sun(context: context);
@@ -135,7 +129,7 @@ class PlantGameScreen extends FlameGame {
 
     final name = textName(context: context);
 
-   _rowTop = RowComponent(
+    _rowTop = RowComponent(
       children: [
         PaddingComponent(
           padding: EdgeInsets.only(right: 10),
@@ -159,7 +153,7 @@ class PlantGameScreen extends FlameGame {
     )
       ..anchor = Anchor.topCenter
       ..position = Vector2(size.x / 2, 30);
-    add(rowTop);
+    add(_rowTop);
 
     _layoutCenter = ColumnComponent(
       children: [

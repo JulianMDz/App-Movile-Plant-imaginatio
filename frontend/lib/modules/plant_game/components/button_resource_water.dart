@@ -47,7 +47,8 @@ class Button_resource_water extends SpriteButtonComponent with HasGameRef {
   };
 
      final text = TextComponent(
-      text: "40", // ejemplo
+      text: "40",);
+       // ejemplo
     _countText = TextComponent(
       text: _stockText(),
       textRenderer: TextPaint(
