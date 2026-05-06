@@ -15,7 +15,7 @@ class InventoryScreen extends FlameGame {
       'Paneles/Fondo_Inv_01.png',
       'Inventario/Panel_InvEspacio_01.png',
       'Inventario/Panel_InvEspacio_02.png',
-      'Planta/pasto_fase_02.png',
+      'Planta/Pasto/fase2_ss.png',
       'Botones/Boton_Cerrar_01.png',
       'Botones/Boton_Categoría_01.png',
       'Botones/Boton_Categoría_02.png',
@@ -93,7 +93,7 @@ class InventoryScreen extends FlameGame {
         ),
       ));
 
-      final img = images.fromCache('Planta/pasto_fase_02.png');
+      final img = images.fromCache('Planta/Pasto/fase2_ss.png');
       final double plantSize = slotW * 0.99;
       slot.add(SpriteComponent()
         ..sprite = Sprite(
@@ -466,7 +466,7 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
       ),
     ));
 
-    final img = gameRef.images.fromCache('Planta/pasto_fase_02.png');
+    final img = gameRef.images.fromCache('Planta/Pasto/fase2_ss.png');
     final double plantSize = panelSize * 0.99; 
     add(SpriteComponent()
       ..sprite = Sprite(

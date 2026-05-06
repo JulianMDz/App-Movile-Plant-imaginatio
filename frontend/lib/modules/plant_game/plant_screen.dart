@@ -155,7 +155,7 @@ class PlantGameScreen extends FlameGame {
 
     final plant = PlantComponent(
       'pasto',
-      1,
+      2,
       Vector2(size.x / 2, size.y / 2 ),
     )
     ..anchor = Anchor.center;

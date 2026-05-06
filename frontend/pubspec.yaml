@@ -76,6 +76,7 @@ flutter:
     - assets/images/Minijuegos/
     - assets/images/Paneles/
     - assets/images/Planta/
+    - assets/images/Planta/Pasto/
     - assets/audios/
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
