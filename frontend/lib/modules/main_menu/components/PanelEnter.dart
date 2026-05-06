@@ -19,7 +19,7 @@ class PanelEnter extends SpriteComponent  {
       textRenderer: TextPaint(
         style: const TextStyle(
           color: Color.fromARGB(255, 152, 85, 47), 
-          fontSize: 12,
+          fontSize: 14,
           fontFamily: 'Press Start 2P',
         ),
         

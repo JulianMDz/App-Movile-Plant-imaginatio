@@ -4,6 +4,7 @@ import 'package:flame/components.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/modules/plant_game/components/Animation_compost.dart';
+import 'package:frontend/core/audio.dart';
 
 class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
   Button_resource_compost({
@@ -26,6 +27,7 @@ class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
     size = button.srcSize/2.3;  
 
   onPressed = () { 
+    AudioManager.abono();
     final animacionCompost = Animation_compost(
       'pasto',
       Vector2(gameRef.size.x, gameRef.size.y),

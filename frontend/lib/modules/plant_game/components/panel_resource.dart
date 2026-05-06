@@ -11,7 +11,7 @@ class Panel_resource_info extends SpriteComponent  {
     size = sprite!.srcSize/3.5;    
 
     textComp = TextComponent(
-      text: 'Necestio algo',
+      text: 'Necesito algo...',
       textRenderer: TextPaint(
         style: const TextStyle(
           color: Colors.white, 

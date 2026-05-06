@@ -4,6 +4,8 @@ import 'package:flame/components.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/modules/plant_game/components/Animation_water.dart';
+import 'package:frontend/core/audio.dart';
+
 class Button_resource_water extends SpriteButtonComponent with HasGameRef{
   Button_resource_water({
     required void Function() onPressed,
@@ -23,6 +25,7 @@ class Button_resource_water extends SpriteButtonComponent with HasGameRef{
     size = button.srcSize/2.3;
 
   onPressed = () { 
+    AudioManager.regar();
     final animacionWater = Animation_water(
       'pasto',
       Vector2(gameRef.size.x, gameRef.size.y),

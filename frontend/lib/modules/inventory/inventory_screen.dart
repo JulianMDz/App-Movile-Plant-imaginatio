@@ -35,6 +35,9 @@ class InventoryScreen extends FlameGame {
       'Iconos/Icono_Semaforo_01.png',
     ]);
 
+    // Música del inventario al abrir la pantalla
+    await AudioManager.musicaInventario();
+
     add(SpriteComponent()
       ..sprite = Sprite(images.fromCache('Paneles/Fondo_Inv_01.png'))
       ..size = size);
@@ -59,7 +62,7 @@ class InventoryScreen extends FlameGame {
     add(FilterPanelComponent(gameRef: this));
 
     final closeBtn = CloseButtonComponent(context);
-    closeBtn.position = Vector2(size.x - 82, 10); 
+    closeBtn.position = Vector2(size.x - 82, 10);
     closeBtn.size = Vector2(40, 40);
     closeBtn.priority = 20;
     add(closeBtn);
@@ -99,7 +102,7 @@ class InventoryScreen extends FlameGame {
         ..sprite = Sprite(
           img,
           srcPosition: Vector2(0, 0),
-          srcSize: Vector2(img.width / 18, img.height.toDouble()),
+          srcSize: Vector2(img.width / 3, img.height.toDouble()), // DIVIDIR EN LA CANTIDAD DE FRAMES DEL SPRITESHEET
         )
         ..size = Vector2(plantSize, plantSize)
         ..anchor = Anchor.center
@@ -187,6 +190,8 @@ class FilterPanelComponent extends PositionComponent {
   }
 
   void _toggleDrawer() {
+    // Click al abrir/cerrar el drawer
+    AudioManager.click();
     _isOpen = !_isOpen;
     _isOpen ? _openDrawer() : _closeDrawer();
   }
@@ -266,11 +271,8 @@ class _FilterDrawer extends PositionComponent with TapCallbacks {
       ..size = Vector2(screenW, h + collapsedH)
       ..position = Vector2.zero());
 
-    // Margen lateral mayor para centrar el contenido
     final double marginSide = screenW * 0.22;
-
-    // Padding superior aumentado para separar del botón filtro
-    const double topReserved = 62.0; 
+    const double topReserved = 62.0;
     const double paddingV = 6.5;
     const double labelFontSize = 7.2;
     const double labelGap = 2.2;
@@ -283,7 +285,6 @@ class _FilterDrawer extends PositionComponent with TapCallbacks {
 
     double currentY = topReserved;
 
-    // ── CATEGORÍA ──
     add(_sectionTitle('CATEGORÍA', screenW / 2, currentY));
     currentY += titleFontSize + titleGap;
     _addIconRow([
@@ -295,7 +296,6 @@ class _FilterDrawer extends PositionComponent with TapCallbacks {
     ], screenW, marginSide, currentY, iconH, labelFontSize, labelGap);
     currentY += sectionH;
 
-    // ── ETAPA ──
     add(_sectionTitle('ETAPA', screenW / 2, currentY));
     currentY += titleFontSize + titleGap;
     _addIconRow([
@@ -306,7 +306,6 @@ class _FilterDrawer extends PositionComponent with TapCallbacks {
     ], screenW, marginSide, currentY, iconH, labelFontSize, labelGap);
     currentY += sectionH;
 
-    // ── URGENCIA ──
     add(_sectionTitle('URGENCIA', screenW / 2, currentY));
     currentY += titleFontSize + titleGap;
     _addIconRow([
@@ -405,6 +404,8 @@ class _TappableSlot extends PositionComponent with TapCallbacks {
   @override
   void onTapDown(TapDownEvent event) {
     if (_expanded) return;
+    // Click al seleccionar una planta del inventario
+    AudioManager.click();
     _expanded = true;
     gameRef.add(_ExpandedOverlay(
       gameRef: gameRef,
@@ -467,12 +468,12 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
     ));
 
     final img = gameRef.images.fromCache('Planta/pasto_fase_02.png');
-    final double plantSize = panelSize * 0.99; 
+    final double plantSize = panelSize * 0.99;
     add(SpriteComponent()
       ..sprite = Sprite(
         img,
         srcPosition: Vector2(0, 0),
-        srcSize: Vector2(img.width / 3, img.height.toDouble()),
+        srcSize: Vector2(img.width / 3, img.height.toDouble()), // DIVIDIR EN LA CANTIDAD DE FRAMES DEL SPRITESHEET
       )
       ..size = Vector2(plantSize, plantSize)
       ..anchor = Anchor.center
@@ -512,23 +513,28 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
     final double btnY = panelY + panelSize + btnGap;
     final double btnW = panelSize * 0.42;
 
+    // Botón Volver — click y cierra overlay
     add(_ImageButton(
       label: 'Volver',
       position: Vector2(panelX, btnY),
       btnSize: Vector2(btnW, btnH),
       gameRef: gameRef,
       onTap: () {
+        AudioManager.click();
         gameRef.remove(this);
         onClose();
       },
     ));
 
+    // Botón Seleccionar — click, detiene música y navega
     add(_ImageButton(
       label: 'Seleccionar',
       position: Vector2(panelX + panelSize - btnW, btnY),
       btnSize: Vector2(btnW, btnH),
       gameRef: gameRef,
       onTap: () {
+        AudioManager.click();
+        AudioManager.stopMusica();
         gameRef.remove(this);
         onClose();
         if (gameRef is InventoryScreen) {
@@ -593,7 +599,7 @@ class _ImageButton extends PositionComponent with TapCallbacks {
 }
 
 // -------------------------------------------------------
-// Botón cerrar
+// Botón cerrar — detiene música del inventario y navega
 // -------------------------------------------------------
 class CloseButtonComponent extends SpriteComponent with TapCallbacks {
   final BuildContext context;
@@ -606,6 +612,8 @@ class CloseButtonComponent extends SpriteComponent with TapCallbacks {
 
   @override
   void onTapDown(TapDownEvent event) {
+    AudioManager.click();
+    AudioManager.stopMusica();
     GoRouter.of(context).go('/plant_game');
     event.continuePropagation = false;
   }

@@ -25,7 +25,7 @@ class LoginOverlay extends StatelessWidget {
                     child: TextField(
                       style: const TextStyle(
                         fontFamily: 'Press Start 2P',
-                        fontSize: 12,
+                        fontSize: 10,
                         color: Colors.black,
                       ),
                       decoration: const InputDecoration(

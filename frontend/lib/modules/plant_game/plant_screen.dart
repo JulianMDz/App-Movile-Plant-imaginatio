@@ -30,7 +30,7 @@ import 'package:flutter/widgets.dart';
 import 'package:frontend/modules/plant_game/mini_games/compost/compost_overlay.dart';
 import 'package:frontend/modules/plant_game/mini_games/sun/sun_overlay.dart';
 import 'package:frontend/modules/plant_game/mini_games/water/water_overlay.dart';
-
+import 'package:frontend/core/audio.dart';
 
 class PlantGameScreen extends FlameGame {
   final BuildContext context;
@@ -39,71 +39,92 @@ class PlantGameScreen extends FlameGame {
 
   @override
   Future<void> onLoad() async {
+    // Música principal al abrir la pantalla
+    await AudioManager.musicaPrincipal();
+
     add(Background());
+
     final helpButton = Button_help(onPressed: () { });
+
     final panelTitle = Panel_title();
-    final inventaryButton = Button_inventory(onPressed: () { 
-      GoRouter.of(context).go('/inventory');
+
+    final inventaryButton = Button_inventory(
+      onPressed: () {
+        // Detiene principal antes de ir al inventario
+        AudioManager.stopMusica();
+        GoRouter.of(context).go('/inventory');
       },
     );
-    
+
     final panelInfo = Panel_resource_info();
 
     final panelBar = PanelLayout()
       ..anchor = Anchor.centerLeft
-      ..position = Vector2(80, size.y/2); // columna centrada
-  
+      ..position = Vector2(80, size.y / 2);
 
+    // Botones de minijuego — recolección
     final sunGameButton = Button_sun_game(
       onPressed: () {
-          add(SunOverlay());
-       },
+        AudioManager.recolectarSoles();
+        AudioManager.miniGames();
+        add(SunOverlay());
+      },
     );
 
     final waterGameButton = Button_water_game(
       onPressed: () {
+        AudioManager.recolectarAgua();
+        AudioManager.miniGames();
         add(WaterOverlay());
       },
     );
+
     final compostGameButton = Button_compost_game(
       onPressed: () {
+        AudioManager.recolectarComposta();
+        AudioManager.miniGames();
         add(CompostOverlay());
-      });
+      },
+    );
 
     final sunButton = Button_resource_sun(onPressed: () { });
     final waterButton = Button_resource_water(onPressed: () { });
     final compostButton = Button_resource_compost(onPressed: () { });
 
-    final button3d = Button_game_3d(onPressed: () { });
+    // Botón para 3D — click general
+    final button3d = Button_game_3d(
+      onPressed: () {
+        AudioManager.click();
+      },
+    );
+
     final name = textName();
-    
-     final rowTop = RowComponent(
+
+    final rowTop = RowComponent(
       children: [
         PaddingComponent(
-              padding: EdgeInsets.only(right: 10),
-              child: panelTitle,
-            ),  
+          padding: EdgeInsets.only(right: 10),
+          child: panelTitle,
+        ),
         PaddingComponent(
-              padding: EdgeInsets.only(right: 30),
-              child: panelInfo,
-            ),   
+          padding: EdgeInsets.only(right: 30),
+          child: panelInfo,
+        ),
         PaddingComponent(
-              padding: EdgeInsets.only(right: 10),
-              child: helpButton,
-            ), 
+          padding: EdgeInsets.only(right: 10),
+          child: helpButton,
+        ),
         PaddingComponent(
-              padding: EdgeInsets.only(right: 10),
-              child: inventaryButton,
-            ),
-   
+          padding: EdgeInsets.only(right: 10),
+          child: inventaryButton,
+        ),
       ],
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
     )
       ..anchor = Anchor.topCenter
-      ..position = Vector2(size.x/2, 30); // columna centrada
+      ..position = Vector2(size.x / 2, 30);
     add(rowTop);
-
 
     final layoutCenter = ColumnComponent(
       children: [
@@ -113,9 +134,9 @@ class PlantGameScreen extends FlameGame {
           child: RowComponent(
             children: [
               PaddingComponent(
-              padding: EdgeInsets.only(right: 200),
-              child: waterGameButton,
-            ),
+                padding: EdgeInsets.only(right: 200),
+                child: waterGameButton,
+              ),
               compostGameButton,
             ],
             mainAxisAlignment: MainAxisAlignment.center,
@@ -127,15 +148,13 @@ class PlantGameScreen extends FlameGame {
       crossAxisAlignment: CrossAxisAlignment.center,
     )
       ..anchor = Anchor.center
-      ..position = Vector2(size.x /2, size.y / 2+10);
-
+      ..position = Vector2(size.x / 2, size.y / 2 + 10);
     add(layoutCenter);
 
     final pastoSeed = PlantComponent(
-    'pasto',
-    Vector2(size.x/2, size.y/2 + 20),
-    )
-      ..anchor = Anchor.center;
+      'pasto',
+      Vector2(size.x / 2, size.y / 2 + 20),
+    )..anchor = Anchor.center;
     add(pastoSeed);
 
     add(panelBar);
@@ -143,37 +162,36 @@ class PlantGameScreen extends FlameGame {
     final columnRight = ColumnComponent(
       children: [
         PaddingComponent(
-              padding: EdgeInsets.only(bottom: 20),
-              child: sunButton,
-            ),
+          padding: EdgeInsets.only(bottom: 20),
+          child: sunButton,
+        ),
         PaddingComponent(
-              padding: EdgeInsets.only(bottom: 20),
-              child: waterButton,
-            ),
+          padding: EdgeInsets.only(bottom: 20),
+          child: waterButton,
+        ),
         compostButton,
       ],
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
     )
-      ..size = Vector2(size.x*0.8, 80)
+      ..size = Vector2(size.x * 0.8, 80)
       ..anchor = Anchor.centerRight
-      ..position = Vector2(size.x-20, size.y / 2);// fila arriba centrada
+      ..position = Vector2(size.x - 20, size.y / 2);
     add(columnRight);
 
     final rowDown = RowComponent(
       children: [
         PaddingComponent(
-              padding: EdgeInsets.only(right: 400),
-              child: name,
-            ),
-        button3d
+          padding: EdgeInsets.only(right: 400),
+          child: name,
+        ),
+        button3d,
       ],
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
     )
       ..anchor = Anchor.bottomCenter
-      ..position = Vector2(size.x/2, size.y -10); // fila abajo centrada
+      ..position = Vector2(size.x / 2, size.y - 10);
     add(rowDown);
   }
 }
-

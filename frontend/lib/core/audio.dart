@@ -50,8 +50,8 @@ static Future<void> init() async {
     await FlameAudio.play('soles_recoleccion.mp3');
   }
 
-  static Future<void> musicaMiniGames() async {
-    await FlameAudio.bgm.play('timer_minigames.mp3', volume: 0.5);
+  static Future<void> miniGames() async {
+    await FlameAudio.play('timer_minigames.mp3');
   }
 
   // =========================

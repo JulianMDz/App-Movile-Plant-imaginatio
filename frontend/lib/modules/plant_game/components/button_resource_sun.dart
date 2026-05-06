@@ -4,6 +4,7 @@ import 'package:flame/components.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/modules/plant_game/components/Animation_sun.dart';
+import 'package:frontend/core/audio.dart';
 
 class Button_resource_sun extends SpriteButtonComponent with HasGameRef{
   Button_resource_sun({
@@ -24,6 +25,7 @@ class Button_resource_sun extends SpriteButtonComponent with HasGameRef{
     size = button.srcSize/2.3;  
 
   onPressed = () { 
+    AudioManager.sol();
     final animacionSun = Animation_sun(
       'pasto',
       Vector2(gameRef.size.x, gameRef.size.y),
