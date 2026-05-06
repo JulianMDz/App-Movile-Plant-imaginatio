@@ -47,14 +47,22 @@ import 'package:frontend/modules/plant_game/plant_controller.dart';
 class PlantGameScreen extends FlameGame {
   final BuildContext context;
 
+  late PanelLayout _panelBar;
+  late RowComponent _rowTop;
+  late ColumnComponent _layoutCenter;
+  late PlantComponent _plant;
+  late ColumnComponent _columnRight;
+  late RowComponent _rowDown;
+
+  bool _isLayoutReady = false;
+
   PlantGameScreen(this.context);
 
   @override
   Future<void> onLoad() async {
-    // Cargar datos del .tree al iniciar — sin await para no bloquear el render.
-    // Los componentes suscritos a PlantController se actualizarán solos via notifyListeners.
+    // Cargar datos del .tree al iniciar y esperar para usar la planta real
     final controller = Provider.of<PlantController>(context, listen: false);
-    unawaited(controller.loadCurrentTree());
+    await controller.loadCurrentTree();
 
     add(Background());
     final helpButton = Button_help(onPressed: () { });
@@ -66,7 +74,7 @@ class PlantGameScreen extends FlameGame {
     
     final panelInfo = Panel_resource_info();
 
-    final panelBar = PanelLayout(context: context)
+    _panelBar = PanelLayout(context: context)
       ..anchor = Anchor.centerLeft
       ..position = Vector2(8 + size.x * 0.05, size.y / 2);
 
@@ -97,7 +105,7 @@ class PlantGameScreen extends FlameGame {
     });
     final name = textName(context: context);
     
-     final rowTop = RowComponent(
+    _rowTop = RowComponent(
       children: [
         PaddingComponent(
               padding: EdgeInsets.only(right: 10),
@@ -122,10 +130,10 @@ class PlantGameScreen extends FlameGame {
     )
       ..anchor = Anchor.topCenter
       ..position = Vector2(size.x/2, 30); // columna centrada
-    add(rowTop);
+    add(_rowTop);
 
 
-    final layoutCenter = ColumnComponent(
+    _layoutCenter = ColumnComponent(
       children: [
         sunGameButton,
         PaddingComponent(
@@ -149,20 +157,31 @@ class PlantGameScreen extends FlameGame {
       ..anchor = Anchor.center
       ..position = Vector2(size.x /2, size.y / 2+10);
 
-    add(layoutCenter);
+    add(_layoutCenter);
 
-    add(panelBar);
+    add(_panelBar);
 
-    final plant = PlantComponent(
-      'Pasto',
-      4,
-      Vector2(size.x / 2, size.y / 2 ),
+    String pType = 'Pasto';
+    int pStage = 2; // bush
+    if (controller.activePlant != null) {
+      pType = controller.activePlant!.id;
+      final fase = controller.activePlant!.estado.fase;
+      if (fase == 'semilla') pStage = 1;
+      else if (fase == 'arbusto') pStage = 2;
+      else if (fase == 'planta') pStage = 3;
+      else if (fase == 'ent') pStage = 4;
+    }
+
+    _plant = PlantComponent(
+      pType,
+      pStage,
+      Vector2(size.x / 2, size.y * 0.78),
     )
     ..anchor = Anchor.center;
-    add(plant);
+    add(_plant);
 
 
-    final columnRight = ColumnComponent(
+    _columnRight = ColumnComponent(
       children: [
         PaddingComponent(
               padding: EdgeInsets.only(bottom: 12),
@@ -179,9 +198,9 @@ class PlantGameScreen extends FlameGame {
     )
       ..anchor = Anchor.centerRight
       ..position = Vector2(size.x - 8, size.y / 2);
-    add(columnRight);
+    add(_columnRight);
 
-    final rowDown = RowComponent(
+    _rowDown = RowComponent(
       children: [
         PaddingComponent(
               padding: EdgeInsets.only(right: 400),
@@ -194,7 +213,39 @@ class PlantGameScreen extends FlameGame {
     )
       ..anchor = Anchor.bottomCenter
       ..position = Vector2(size.x/2, size.y -10); // fila abajo centrada
-    add(rowDown);
+    add(_rowDown);
+
+    _isLayoutReady = true;
+    _applyLayout(size);
+  }
+
+  @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
+    if (_isLayoutReady) {
+      _applyLayout(size);
+    }
+  }
+
+  void _applyLayout(Vector2 size) {
+      _panelBar.position = Vector2(8 + size.x * 0.05, size.y / 2);
+      _rowTop.position = Vector2(size.x / 2, 30);
+      _layoutCenter.position = Vector2(size.x / 2, size.y / 2 + 10);
+      
+      // La altura base de referencia para cálculos de posición (ej. 1080p landscape)
+      final double scaleFactor = size.y / 1080.0;
+      
+      // Aplicar estrictamente la escala original de la fase (sin modificar)
+      _plant.scale = _plant.stageScale; 
+      
+      // Posicionar en el 78% de la pantalla (suelo) + el offset visual de la fase escalado
+      _plant.position = Vector2(
+        size.x / 2, 
+        (size.y * 0.78) + (_plant.stageOffset.y * scaleFactor),
+      );
+      
+      _columnRight.position = Vector2(size.x - 8, size.y / 2);
+      _rowDown.position = Vector2(size.x / 2, size.y - 10);
   }
 }
 

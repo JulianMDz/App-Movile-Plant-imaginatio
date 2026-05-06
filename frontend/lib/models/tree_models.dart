@@ -271,11 +271,6 @@ class TreePlanta {
   /// 🟢 Flutter
   TreeRecursosAplicados recursosAplicados;
 
-  /// 🟢 Flutter — timestamp de la última interacción con la planta.
-  /// Usado para calcular el decay pasivo de recursos_aplicados.
-  /// Se actualiza cada vez que el usuario aplica un recurso.
-  DateTime lastInteraction;
-
   TreePlanta({
     required this.id,
     required this.instanceId,
@@ -286,14 +281,12 @@ class TreePlanta {
     TreeVisualEstado? visualEstado,
     TreeUso? uso,
     TreeRecursosAplicados? recursosAplicados,
-    DateTime? lastInteraction,
   })  : subid = subid ?? id,
         estado = estado ?? TreeEstado(fase: 'semilla'),
         progreso = progreso ?? const TreeProgreso(),
         visualEstado = visualEstado ?? TreeVisualEstado(),
         uso = uso ?? const TreeUso(),
-        recursosAplicados = recursosAplicados ?? TreeRecursosAplicados(),
-        lastInteraction = lastInteraction ?? DateTime.now().toUtc();
+        recursosAplicados = recursosAplicados ?? TreeRecursosAplicados();
 
   factory TreePlanta.fromJson(Map<String, dynamic> json) => TreePlanta(
         id: (json['id'] as String?) ?? '',
@@ -309,18 +302,7 @@ class TreePlanta {
         uso: TreeUso.fromJson((json['uso'] as Map<String, dynamic>?) ?? {}),
         recursosAplicados: TreeRecursosAplicados.fromJson(
             (json['recursos_aplicados'] as Map<String, dynamic>?) ?? {}),
-        lastInteraction: _parseDateTime(json['last_interaction']),
       );
-
-  /// Parseo defensivo de fechas: evita crash si viene null o corrupto.
-  static DateTime _parseDateTime(dynamic value) {
-    if (value == null) return DateTime.now().toUtc();
-    try {
-      return DateTime.parse(value as String).toUtc();
-    } catch (_) {
-      return DateTime.now().toUtc();
-    }
-  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -332,9 +314,6 @@ class TreePlanta {
         'visual_estado': visualEstado.toJson(),
         'uso': uso.toJson(),
         'recursos_aplicados': recursosAplicados.toJson(),
-        // last_interaction es INTERNO: persiste en SharedPreferences pero
-        // NO aparece en el archivo Documents exportado (véase toPublicJson).
-        'last_interaction': lastInteraction.toUtc().toIso8601String(),
       };
 
   /// Serializa la planta con el esquema exacto del equipo web.
