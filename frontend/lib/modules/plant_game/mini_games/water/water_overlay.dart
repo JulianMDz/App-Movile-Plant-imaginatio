@@ -141,6 +141,7 @@ class WaterAlertComponent extends PositionComponent with TapCallbacks {
             color: Color(0xFF66CCFF),
             fontSize: 26,
             fontWeight: FontWeight.bold,
+            fontFamily: 'Press Start 2P',
             shadows: [Shadow(blurRadius: 8, color: Colors.black)],
           ),
         ),
@@ -157,6 +158,7 @@ class WaterAlertComponent extends PositionComponent with TapCallbacks {
           style: const TextStyle(
             color: Color(0xAAFFFFFF),
             fontSize: 14,
+            fontFamily: 'Press Start 2P',
           ),
         ),
         anchor: Anchor.center,

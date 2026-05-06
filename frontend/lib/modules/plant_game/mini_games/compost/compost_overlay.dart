@@ -169,6 +169,7 @@ class CompostAlertComponent extends PositionComponent with TapCallbacks {
             color: Color(0xFF66FF66),
             fontSize: 22,
             fontWeight: FontWeight.bold,
+            fontFamily: 'Press Start 2P',
             shadows: [Shadow(blurRadius: 8, color: Colors.black)],
           ),
         ),
@@ -185,6 +186,7 @@ class CompostAlertComponent extends PositionComponent with TapCallbacks {
           style: const TextStyle(
             color: Color(0xAAFFFFFF),
             fontSize: 14,
+            fontFamily: 'Press Start 2P',
           ),
         ),
         anchor: Anchor.center,

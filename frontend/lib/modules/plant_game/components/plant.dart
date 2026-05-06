@@ -62,7 +62,7 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   Vector2 get stageScale {
     switch (_activeStage) {
       case PlantStage.seed:
-        return Vector2.all(1.8);
+        return Vector2.all(0.3);
       case PlantStage.bush:
         return Vector2.all(1.5);
       case PlantStage.tree:

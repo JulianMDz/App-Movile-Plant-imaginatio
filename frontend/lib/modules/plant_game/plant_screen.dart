@@ -57,6 +57,8 @@ class PlantGameScreen extends FlameGame {
   bool _isLayoutReady = false;
 
   PlantGameScreen(this.context);
+   @override
+  Color backgroundColor() => const Color.fromARGB(255, 61, 67, 17);
 
   @override
   Future<void> onLoad() async {
@@ -175,7 +177,7 @@ class PlantGameScreen extends FlameGame {
     _plant = PlantComponent(
       pType,
       pStage,
-      Vector2(size.x / 2, size.y * 0.78),
+      Vector2(size.x / 2, size.y /2),
     )
     ..anchor = Anchor.center;
     add(_plant);
