@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'core/router.dart';
 import 'modules/plant_game/plant_controller.dart';
 import 'services/local_storage_service.dart';
+import 'services/tree_storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,8 +17,26 @@ void main() async {
   ]);
 
   final authStorage = LocalStorageService();
+  final treeStorage = TreeStorageService();
+  
   final sessionId = await authStorage.getCurrentSession();
-  final initialRoute = sessionId != null ? '/plant_game' : '/login';
+  bool isUserRegistered = false;
+
+  if (sessionId != null) {
+    // 1. Verificar si el .tree existe y tiene un nombre de usuario
+    final tree = await treeStorage.loadTree();
+    if (tree != null && tree.usuario.nombre.trim().isNotEmpty) {
+      isUserRegistered = true;
+    } else {
+      // 2. Fallback: Verificar si el usuario legado existe y tiene nombre
+      final user = await authStorage.getUser(sessionId);
+      if (user != null && user.username.trim().isNotEmpty) {
+        isUserRegistered = true;
+      }
+    }
+  }
+
+  final initialRoute = isUserRegistered ? '/plant_game' : '/login';
 
   runApp(
     MultiProvider(

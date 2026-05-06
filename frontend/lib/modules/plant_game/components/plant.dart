@@ -28,21 +28,49 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   
   switch (stageEnum) {
       case PlantStage.seed:
-        scale = Vector2.all(1.8);
-        position += Vector2(0, -80);
+        scale = stageScale;
         break;
       case PlantStage.bush:
-        scale = Vector2.all(1.5);
-        position += Vector2(0, -50);
+        scale = stageScale;
         break;
       case PlantStage.tree:
-        scale = Vector2.all(1.0);
-        position += Vector2(0, 20);
+        scale = stageScale;
         break;
       case PlantStage.ent:
-        scale = Vector2.all(0.7);
-        position += Vector2(0, 50);
+        scale = stageScale;
         break;
+    }
+  }
+
+  PlantStage get _activeStage => current ?? _intToStage(initialStage);
+
+  Vector2 get stageOffset {
+    switch (_activeStage) {
+      case PlantStage.seed:
+        return Vector2(0, -80);
+      case PlantStage.bush:
+        return Vector2(0, -50);
+      case PlantStage.tree:
+        return Vector2(0, 20);
+      case PlantStage.ent:
+        return Vector2(0, 50);
+      default:
+        return Vector2.zero();
+    }
+  }
+
+  Vector2 get stageScale {
+    switch (_activeStage) {
+      case PlantStage.seed:
+        return Vector2.all(1.8);
+      case PlantStage.bush:
+        return Vector2.all(1.5);
+      case PlantStage.tree:
+        return Vector2.all(1.0);
+      case PlantStage.ent:
+        return Vector2.all(0.7);
+      default:
+        return Vector2.all(1.0);
     }
   }
 
@@ -62,19 +90,25 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   }
 
 
+  String get folderName {
+    if (plantType.isEmpty) return 'Pasto';
+    return plantType[0].toUpperCase() + plantType.substring(1);
+  }
+
   Future<SpriteAnimation> _loadStageAnimation(PlantStage stage) async {
+    final folder = folderName;
     switch (stage) {
       case PlantStage.seed:
-        return _loadAnim('Pasto/fase1_ss.png', 18);
+        return _loadAnim('$folder/fase1_ss.png', 18);
 
       case PlantStage.bush:
-        return _loadAnim('Pasto/fase2_ss.png', 18);
+        return _loadAnim('$folder/fase2_ss.png', 18);
 
       case PlantStage.tree:
-        return _loadAnim('Pasto/fase3_ss.png', 18);
+        return _loadAnim('$folder/fase3_ss.png', 18);
 
       case PlantStage.ent:
-        return _loadAnim('Pasto/fase4_ss.png', 18);
+        return _loadAnim('$folder/fase4_ss.png', 18);
     }
   }
 

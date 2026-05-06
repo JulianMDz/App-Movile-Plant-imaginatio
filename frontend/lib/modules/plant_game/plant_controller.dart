@@ -97,7 +97,6 @@ class PlantController extends ChangeNotifier {
         estado: TreeEstado(fase: 'semilla'),
         // Se le otorgan recursos iniciales para que no muera en los primeros 10 minutos
         recursosAplicados: TreeRecursosAplicados(sol: 10, agua: 10, composta: 0),
-        lastInteraction: DateTime.now().toUtc(),
       );
       _currentTree!.plantas.add(defaultPasto);
       debugPrint('[PlantController] 🌱 Planta pasto por defecto añadida al tree.');
