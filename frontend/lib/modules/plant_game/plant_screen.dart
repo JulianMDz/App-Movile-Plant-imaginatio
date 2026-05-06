@@ -154,8 +154,8 @@ class PlantGameScreen extends FlameGame {
     add(panelBar);
 
     final plant = PlantComponent(
-      'pasto',
-      2,
+      'Mangle',
+      4,
       Vector2(size.x / 2, size.y / 2 ),
     )
     ..anchor = Anchor.center;

@@ -28,16 +28,16 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   
   switch (stageEnum) {
       case PlantStage.seed:
-        scale = Vector2.all(1.8);
-        position += Vector2(0, -80);
+        scale = Vector2.all(0.3);
+        position += Vector2(0, 90);
         break;
       case PlantStage.bush:
-        scale = Vector2.all(1.5);
-        position += Vector2(0, -50);
+        scale = Vector2.all(0.4);
+        position += Vector2(0, 70);
         break;
       case PlantStage.tree:
-        scale = Vector2.all(1.0);
-        position += Vector2(0, 20);
+        scale = Vector2.all(0.5);
+        position += Vector2(0, 70);
         break;
       case PlantStage.ent:
         scale = Vector2.all(0.7);
@@ -65,16 +65,16 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   Future<SpriteAnimation> _loadStageAnimation(PlantStage stage) async {
     switch (stage) {
       case PlantStage.seed:
-        return _loadAnim('Pasto/fase1_ss.png', 18);
+        return _loadAnim('$plantType/fase1_ss.png', 18);
 
       case PlantStage.bush:
-        return _loadAnim('Pasto/fase2_ss.png', 18);
+        return _loadAnim('$plantType/fase2_ss.png', 18);
 
       case PlantStage.tree:
-        return _loadAnim('Pasto/fase3_ss.png', 18);
+        return _loadAnim('$plantType/fase3_ss.png', 18);
 
       case PlantStage.ent:
-        return _loadAnim('Pasto/fase4_ss.png', 18);
+        return _loadAnim('$plantType/fase4_ss.png', 18);
     }
   }
 
