@@ -55,8 +55,9 @@ class PlantController extends ChangeNotifier {
       _currentTree = await _treeStorage.loadTree();
 
       if (_currentTree != null) {
-        _ensureDefaultPlant();          // garantiza que siempre haya una planta activa
-        await applyPassiveDecay();            // aplica decay antes de mostrar estado
+        _ensureDefaultPlant();
+        await applyPassiveDecay();
+        await saveTree();
         _currentUser = _userModelFromTree(_currentTree!);
         notifyListeners();
         return;

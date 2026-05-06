@@ -229,8 +229,8 @@ class TreeRecursosAplicados {
 
   factory TreeRecursosAplicados.fromJson(Map<String, dynamic> json) =>
       TreeRecursosAplicados(
-        agua: (json['agua'] as int?) ?? 0,
-        sol: (json['sol'] as int?) ?? 0,
+        agua: (json['agua'] as int?) ?? 1,
+        sol: (json['sol'] as int?) ?? 1,
         composta: (json['composta'] as int?) ?? 0,
       );
 

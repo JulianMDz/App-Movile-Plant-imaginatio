@@ -28,6 +28,11 @@ class LocalStorageService {
     return prefs.getString('current_session_id');
   }
 
+  Future<void> clearSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('current_session_id');
+  }
+
   Future<void> saveMinigameCooldown(String userId, String minigameType, DateTime time) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('$_cooldownKeyPrefix${userId}_', time.toIso8601String());

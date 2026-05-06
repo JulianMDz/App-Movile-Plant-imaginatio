@@ -12,30 +12,37 @@ class LoginScreen extends FlameGame {
   final BuildContext context;
   final VoidCallback onLogin;
 
+  PanelEnter? panelEnter;
+  PanelName? panelName;
+  ButtonEnter? buttonEnter;
+
   LoginScreen(this.context, {required this.onLogin});
-   @override
+
+  @override
   Color backgroundColor() => const Color.fromARGB(255, 61, 67, 17);
+
   @override
   Future<void> onLoad() async {
-  final panelEnter = PanelEnter()
-    ..anchor = Anchor.center
-    ..position = Vector2(size.x/2, size.y /2);
-  add(panelEnter);
+    panelEnter = PanelEnter()..anchor = Anchor.center;
+    panelName = PanelName()..anchor = Anchor.center;
+    buttonEnter = ButtonEnter(
+      onPressed: onLogin,
+    )..anchor = Anchor.bottomCenter;
 
-  final panelName = PanelName()
-    ..anchor = Anchor.center
-    ..position = Vector2(size.x/2, size.y /2);
-  add(panelName);
+    add(panelEnter!);
+    add(panelName!);
+    add(buttonEnter!);
+  }
 
-  final buttonEnter = ButtonEnter(
-      onPressed: () {
-        onLogin();
-      },)
-      ..anchor = Anchor.bottomCenter
-      ..position = Vector2(size.x / 2, size.y / 2+90);
-  
-  add(buttonEnter);
+  @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
 
-  
-  } 
+    final centerX = size.x / 2;
+    final centerY = size.y / 2;
+
+    panelEnter?.position = Vector2(centerX, centerY);
+    panelName?.position = Vector2(centerX, centerY);
+    buttonEnter?.position = Vector2(centerX, centerY + 90);
+  }
 }
