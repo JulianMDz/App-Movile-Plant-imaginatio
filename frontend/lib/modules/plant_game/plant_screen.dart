@@ -1,4 +1,8 @@
+import 'dart:convert';
+
+import 'package:flame/flame.dart';
 import 'package:flame/layout.dart';
+import 'package:flutter/services.dart';
 import 'package:frontend/modules/plant_game/components/Animation_compost.dart';
 import 'package:frontend/modules/plant_game/components/Animation_critical.dart';
 import 'package:frontend/modules/plant_game/components/Animation_danger.dart';
@@ -131,14 +135,16 @@ class PlantGameScreen extends FlameGame {
 
     add(layoutCenter);
 
-    final pastoSeed = PlantComponent(
-    'pasto',
-    Vector2(size.x/2, size.y/2 + 20),
-    )
-      ..anchor = Anchor.center;
-    add(pastoSeed);
-
     add(panelBar);
+
+    final plant = PlantComponent(
+      'pasto',
+      1,
+      Vector2(size.x / 2, size.y / 2 ),
+    )
+    ..anchor = Anchor.center;
+    add(plant);
+
 
     final columnRight = ColumnComponent(
       children: [

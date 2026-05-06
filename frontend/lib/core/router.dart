@@ -3,20 +3,15 @@ import 'package:frontend/modules/main_menu/login_screen.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:frontend/modules/plant_game/plant_screen.dart';
-import 'package:frontend/modules/main_menu/main_menu.dart';
 import 'package:frontend/modules/main_menu/components/loginComponent.dart';
 import 'package:frontend/modules/inventory/inventory_screen.dart';
 
 final router = GoRouter(
-  initialLocation: '/menu', // ← Esto define la ruta inicial
+  initialLocation: '/login', // ← Esto define la ruta inicial
   routes: [
     GoRoute(
       path: '/',
-      redirect: (_, __) => '/menu', // ← Redirige la raíz a /menu
-    ),
-    GoRoute(
-      path: '/menu',
-      builder: (context, state) => const MainMenuScreen(),
+      redirect: (_, __) => '/login', // ← Redirige la raíz a /login
     ),
     GoRoute(
       path: '/login',

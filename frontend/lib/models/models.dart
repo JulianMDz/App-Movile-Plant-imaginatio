@@ -136,7 +136,7 @@ class UserModel {
         'plants': plants.map((p) => p.toJson()).toList(),
         'resources': resources.toJson(),
       };
-
+}
 
 class MinigameResult {
   final String plantId;
@@ -166,5 +166,4 @@ class MinigameResult {
     'compost_total': compostTotal,
     'fertilizer_gained': fertilizerGained,
   };
-}
 }
