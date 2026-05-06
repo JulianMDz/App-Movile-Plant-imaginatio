@@ -25,5 +25,5 @@
         android:layout_centerHorizontal="true"
         android:layout_marginTop="8dp"
         android:contentDescription="@string/appwidget_text"
-        android:src="@drawable/widget" />
+        android:src="@drawable/plantgame" />
 </RelativeLayout>

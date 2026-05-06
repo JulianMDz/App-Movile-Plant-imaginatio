@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Almacenamiento: Documents/IMAGINATIO/ para intercambio Flutter ↔ Unity -->
+    <!-- Android 11+ (API 30+): MANAGE_EXTERNAL_STORAGE - acceso a Documents públicos -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <!-- Android ≤ 10: WRITE_EXTERNAL_STORAGE legacy -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+
     <!--
      Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -19,7 +28,9 @@
     <application
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:label="Plantagotchi">
+        android:label="Plantagotchi"
+        android:requestLegacyExternalStorage="true">
+
         <receiver
             android:name=".NewWidget"
             android:exported="false">

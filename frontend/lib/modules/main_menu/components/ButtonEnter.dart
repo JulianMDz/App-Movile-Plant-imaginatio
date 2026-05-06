@@ -1,12 +1,9 @@
 import 'package:flame/components.dart';
-import 'package:flame/events.dart'; // este sí es el correcto
+import 'package:flame/events.dart';
 import 'package:flame/flame.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
-import 'package:flame/components.dart';
-import 'package:flutter/material.dart';
 
 class ButtonEnter extends SpriteButtonComponent {
   late TextComponent textComp;

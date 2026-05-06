@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:frontend/modules/main_menu/components/PanelName.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:flame/components.dart';
 import 'ButtonEnter.dart';
@@ -11,8 +10,9 @@ import 'PanelEnter.dart';
 
 class LoginScreen extends FlameGame {
   final BuildContext context;
+  final VoidCallback onLogin;
 
-  LoginScreen(this.context);
+  LoginScreen(this.context, {required this.onLogin});
    @override
   Color backgroundColor() => const Color.fromARGB(255, 61, 67, 17);
   @override
@@ -29,7 +29,7 @@ class LoginScreen extends FlameGame {
 
   final buttonEnter = ButtonEnter(
       onPressed: () {
-        GoRouter.of(context).go('/plant_game');
+        onLogin();
       },)
       ..anchor = Anchor.bottomCenter
       ..position = Vector2(size.x / 2, size.y / 2+90);

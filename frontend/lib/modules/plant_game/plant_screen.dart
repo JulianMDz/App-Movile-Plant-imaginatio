@@ -7,6 +7,7 @@ import 'package:frontend/modules/plant_game/components/Animation_sun.dart';
 import 'package:frontend/modules/plant_game/components/Animation_tombstone.dart';
 import 'package:frontend/modules/plant_game/components/Animation_water.dart';
 import 'package:frontend/modules/plant_game/components/Button_Inventary.dart';
+import 'package:frontend/modules/plant_game/components/Button_game_3d.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_compost.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_sun.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_water.dart';
@@ -23,6 +24,8 @@ import 'package:frontend/modules/plant_game/components/Button_help.dart';
 import 'package:flame/components.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:frontend/modules/plant_game/plant_logic.dart';
+
 import 'package:flame/experimental.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/widgets.dart';
@@ -31,6 +34,12 @@ import 'package:frontend/modules/plant_game/mini_games/sun/sun_overlay.dart';
 import 'package:frontend/modules/plant_game/mini_games/water/water_overlay.dart';
 
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
+import 'package:frontend/modules/plant_game/plant_controller.dart';
+
 class PlantGameScreen extends FlameGame {
   final BuildContext context;
 
@@ -38,6 +47,11 @@ class PlantGameScreen extends FlameGame {
 
   @override
   Future<void> onLoad() async {
+    // Cargar datos del .tree al iniciar — sin await para no bloquear el render.
+    // Los componentes suscritos a PlantController se actualizarán solos via notifyListeners.
+    final controller = Provider.of<PlantController>(context, listen: false);
+    unawaited(controller.loadCurrentTree());
+
     add(Background());
     final helpButton = Button_help(onPressed: () { });
     final panelTitle = Panel_title();
@@ -48,82 +62,90 @@ class PlantGameScreen extends FlameGame {
     
     final panelInfo = Panel_resource_info();
 
-    final panelBar = PanelLayout();
+    final panelBar = PanelLayout(context: context)
+      ..anchor = Anchor.centerLeft
+      ..position = Vector2(8 + size.x * 0.05, size.y / 2);
 
     final sunGameButton = Button_sun_game(
       onPressed: () {
-          add(SunOverlay());
-       })
-    ..anchor = Anchor.centerLeft
-    ..position = Vector2(20, 180);
+        add(SunOverlay(context: context));
+      },
+    );
 
     final waterGameButton = Button_water_game(
       onPressed: () {
-        add(WaterOverlay());
+        add(WaterOverlay(context: context));
       },
     );
     final compostGameButton = Button_compost_game(
+      context: context,
       onPressed: () {
-        add(CompostOverlay());
-      });
+        add(CompostOverlay(context: context));
+      },
+    );
 
-    final sunButton = Button_resource_sun(onPressed: () { });
-    final waterButton = Button_resource_water(onPressed: () { });
-    final compostButton = Button_resource_compost(onPressed: () { });
+    final sunButton = Button_resource_sun(context: context);
+    final waterButton = Button_resource_water(context: context);
+    final compostButton = Button_resource_compost(context: context);
+
+    final button3d = Button_game_3d(onPressed: () {
+      overlays.add('sync');
+    });
+    final name = textName(context: context);
     
-    final layoutTop = ColumnComponent(
+     final rowTop = RowComponent(
       children: [
-        RowComponent(
-          children: [
-            PaddingComponent(
+        PaddingComponent(
+              padding: EdgeInsets.only(right: 10),
+              child: panelTitle,
+            ),  
+        PaddingComponent(
+              padding: EdgeInsets.only(right: 30),
+              child: panelInfo,
+            ),   
+        PaddingComponent(
               padding: EdgeInsets.only(right: 10),
               child: helpButton,
-            ),
-            PaddingComponent(
-              padding: EdgeInsets.symmetric(horizontal: 40),
-              child: panelTitle,
-            ),
-            PaddingComponent(
-              padding: EdgeInsets.only(left: 10),
+            ), 
+        PaddingComponent(
+              padding: EdgeInsets.only(right: 10),
               child: inventaryButton,
             ),
-          ],
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-        )
-          ..size = Vector2(size.x*0.8, 80)
-          ..anchor = Anchor.topCenter
-          ..position = Vector2(size.x / 2, 60), // fila arriba centrada
-        RowComponent(
-          children: [panelInfo],
-        )
-          ..anchor = Anchor.topCenter
-          ..position = Vector2(size.x / 2, 110), // fila arriba centrada
-      ]
-    );
-    add(layoutTop);
+   
+      ],
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+    )
+      ..anchor = Anchor.topCenter
+      ..position = Vector2(size.x/2, 30); // columna centrada
+    add(rowTop);
 
-    add(sunGameButton);
 
-    final columnCenter = ColumnComponent(
+    final layoutCenter = ColumnComponent(
       children: [
-        panelBar,
+        sunGameButton,
         PaddingComponent(
-              padding: EdgeInsets.only(top: 80),
+          padding: EdgeInsets.only(top: 150),
+          child: RowComponent(
+            children: [
+              PaddingComponent(
+              padding: EdgeInsets.only(right: 200),
               child: waterGameButton,
             ),
-            
-        PaddingComponent(
-              padding: EdgeInsets.only(top: 50),
-              child: compostGameButton,
-            ),
+              compostGameButton,
+            ],
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+          ),
+        ),
       ],
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
     )
-      ..anchor = Anchor.centerRight
-      ..position = Vector2(size.x-20, size.y /2-40); // columna centrada
-    add(columnCenter);
+      ..anchor = Anchor.center
+      ..position = Vector2(size.x /2, size.y / 2+10);
+
+    add(layoutCenter);
 
     final pastoSeed = PlantComponent(
     'pasto',
@@ -132,30 +154,41 @@ class PlantGameScreen extends FlameGame {
       ..anchor = Anchor.center;
     add(pastoSeed);
 
-    
+    add(panelBar);
 
-    final rowDown = RowComponent(
+    final columnRight = ColumnComponent(
       children: [
         PaddingComponent(
-              padding: EdgeInsets.only(right: 40),
+              padding: EdgeInsets.only(bottom: 12),
               child: sunButton,
             ),
         PaddingComponent(
-              padding: EdgeInsets.only(right: 40),
+              padding: EdgeInsets.only(bottom: 12),
               child: waterButton,
             ),
         compostButton,
       ],
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.center,
     )
-      ..size = Vector2(size.x*0.8, 80)
-      ..anchor = Anchor.bottomCenter
-      ..position = Vector2(size.x / 2, size.y - 80); // fila arriba centrada
-    add(rowDown);
+      ..anchor = Anchor.centerRight
+      ..position = Vector2(size.x - 8, size.y / 2);
+    add(columnRight);
 
-    add(textName());
-   
+    final rowDown = RowComponent(
+      children: [
+        PaddingComponent(
+              padding: EdgeInsets.only(right: 400),
+              child: name,
+            ),
+        button3d
+      ],
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+    )
+      ..anchor = Anchor.bottomCenter
+      ..position = Vector2(size.x/2, size.y -10); // fila abajo centrada
+    add(rowDown);
   }
 }
 
