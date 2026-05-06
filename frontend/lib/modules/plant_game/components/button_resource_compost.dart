@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'package:frontend/modules/plant_game/components/Animation_compost.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
+import 'package:frontend/core/audio.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Button_resource_compost
@@ -28,7 +29,22 @@ class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
   Future<void> onLoad() async {
     button = await Sprite.load('Botones/Boton_RecursoAbono_02.png');
     buttonDown = await Sprite.load('Botones/Boton_RecursoAbono_01.png');
-    size = button.srcSize / 2.3;
+
+    size = button.srcSize/2.3;  
+
+  onPressed = () { 
+    AudioManager.abono();
+    final animacionCompost = Animation_compost(
+      'pasto',
+      Vector2(gameRef.size.x, gameRef.size.y),
+    )
+      ..anchor = Anchor.center
+      ..position = Vector2(
+        gameRef.size.x / 2,
+        gameRef.size.y / 2,
+      );
+    gameRef.add(animacionCompost);
+  };
 
     _countText = TextComponent(
       text: _stockText(),

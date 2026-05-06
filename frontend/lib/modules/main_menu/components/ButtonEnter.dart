@@ -5,6 +5,10 @@ import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:flame/components.dart';
+import 'package:flutter/material.dart';
+import 'package:frontend/core/audio.dart';
+
 class ButtonEnter extends SpriteButtonComponent {
   late TextComponent textComp;
 
@@ -52,6 +56,7 @@ class ButtonEnter extends SpriteButtonComponent {
   @override
   void onTapUp(TapUpEvent event) {
     super.onTapUp(event);
+    AudioManager.click();
     scale = Vector2.all(0.51);
   }
 

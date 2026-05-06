@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:frontend/modules/plant_game/components/Animation_sun.dart';
+import 'package:frontend/core/audio.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,6 +32,27 @@ class Button_resource_sun extends SpriteButtonComponent with HasGameRef {
   Future<void> onLoad() async {
     button = await Sprite.load('Botones/Boton_RecursoSol_02.png');
     buttonDown = await Sprite.load('Botones/Boton_RecursoSol_01.png');
+
+    size = button.srcSize/2.3;  
+
+  onPressed = () { 
+    AudioManager.sol();
+    final animacionSun = Animation_sun(
+      'pasto',
+      Vector2(gameRef.size.x, gameRef.size.y),
+    )
+      ..anchor = Anchor.center
+      ..position = Vector2(
+        gameRef.size.x / 2,
+        gameRef.size.y / 2,
+      );
+
+    gameRef.add(animacionSun);
+  };
+
+    
+    final text = TextComponent(
+      text: "40", // ejemplo
     size = button.srcSize / 2.3;
 
     // Contador de stock disponible

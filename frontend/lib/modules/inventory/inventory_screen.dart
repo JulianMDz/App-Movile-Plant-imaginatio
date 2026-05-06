@@ -38,6 +38,9 @@ class InventoryScreen extends FlameGame {
       'Iconos/Icono_Semaforo_01.png',
     ]);
 
+    // Música del inventario al abrir la pantalla
+    await AudioManager.musicaInventario();
+
     add(SpriteComponent()
       ..sprite = Sprite(images.fromCache('Paneles/Fondo_Inv_01.png'))
       ..size = size);
@@ -62,8 +65,7 @@ class InventoryScreen extends FlameGame {
     add(FilterPanelComponent(gameRef: this));
 
     final closeBtn = CloseButtonComponent(context);
-    closeBtn.anchor = Anchor.topRight;
-    closeBtn.position = Vector2(size.x - 82, 0);
+    closeBtn.position = Vector2(size.x - 82, 10);
     closeBtn.size = Vector2(40, 40);
     closeBtn.priority = 20;
     add(closeBtn);
@@ -103,7 +105,7 @@ class InventoryScreen extends FlameGame {
         ..sprite = Sprite(
           img,
           srcPosition: Vector2(0, 0),
-          srcSize: Vector2(img.width / 18, img.height.toDouble()),
+          srcSize: Vector2(img.width / 3, img.height.toDouble()), // DIVIDIR EN LA CANTIDAD DE FRAMES DEL SPRITESHEET
         )
         ..size = Vector2(plantSize, plantSize)
         ..anchor = Anchor.center
@@ -150,7 +152,247 @@ class InventoryScreen extends FlameGame {
   }
 }
 
+// -------------------------------------------------------
+// Panel de filtros
+// -------------------------------------------------------
+class FilterPanelComponent extends PositionComponent {
+  final FlameGame gameRef;
+  bool _isOpen = false;
+  late _FilterDrawer _drawer;
+  late _FilterToggleButton _filterBtn;
+  static const double _collapsedH = 56.0;
 
+  FilterPanelComponent({required this.gameRef});
+
+  @override
+  Future<void> onLoad() async {
+    final double screenW = gameRef.size.x;
+    final double screenH = gameRef.size.y;
+
+    size = Vector2(screenW, _collapsedH);
+    position = Vector2(0, screenH - _collapsedH);
+    priority = 5;
+
+    add(SpriteComponent()
+      ..sprite = Sprite(gameRef.images.fromCache('Paneles/Panel_DescripciónPlanta_05.png'))
+      ..size = Vector2(screenW, _collapsedH));
+
+    _drawer = _FilterDrawer(gameRef: gameRef)
+      ..position = Vector2(0, screenH)
+      ..size = Vector2(screenW, 0);
+    gameRef.add(_drawer);
+
+    _filterBtn = _FilterToggleButton(
+      gameRef: gameRef,
+      onTap: _toggleDrawer,
+    )
+      ..position = Vector2(screenW / 2 - 20, screenH - _collapsedH + 8)
+      ..size = Vector2(40, 40)
+      ..priority = 8;
+    gameRef.add(_filterBtn);
+  }
+
+  void _toggleDrawer() {
+    // Click al abrir/cerrar el drawer
+    AudioManager.click();
+    _isOpen = !_isOpen;
+    _isOpen ? _openDrawer() : _closeDrawer();
+  }
+
+  void _openDrawer() {
+    final double screenH = gameRef.size.y;
+    final double drawerH = screenH * 0.72 - _collapsedH;
+    _drawer.position = Vector2(0, screenH - _collapsedH - drawerH);
+    _drawer.size = Vector2(gameRef.size.x, drawerH);
+    _drawer.drawerH = drawerH;
+    _drawer.isVisible = true;
+    _drawer.rebuild();
+
+    _filterBtn.position = Vector2(
+      gameRef.size.x / 2 - 20,
+      screenH - _collapsedH - drawerH + 8,
+    );
+  }
+
+  void _closeDrawer() {
+    final double screenH = gameRef.size.y;
+    _drawer.position = Vector2(0, screenH);
+    _drawer.size = Vector2(gameRef.size.x, 0);
+    _drawer.isVisible = false;
+
+    _filterBtn.position = Vector2(
+      gameRef.size.x / 2 - 20,
+      screenH - _collapsedH + 8,
+    );
+  }
+}
+
+class _FilterToggleButton extends SpriteComponent with TapCallbacks {
+  final FlameGame gameRef;
+  final VoidCallback onTap;
+  _FilterToggleButton({required this.gameRef, required this.onTap});
+
+  @override
+  Future<void> onLoad() async {
+    sprite = Sprite(gameRef.images.fromCache('Botones/Boton_Filtro.png'));
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    onTap();
+    event.continuePropagation = false;
+  }
+}
+
+// -------------------------------------------------------
+// Drawer
+// -------------------------------------------------------
+class _FilterDrawer extends PositionComponent with TapCallbacks {
+  final FlameGame gameRef;
+  bool isVisible = false;
+  double drawerH = 0;
+
+  _FilterDrawer({required this.gameRef});
+
+  @override
+  Future<void> onLoad() async {
+    priority = 6;
+  }
+
+  void rebuild() {
+    removeAll(children.toList());
+    _buildContent();
+  }
+
+  void _buildContent() {
+    final double screenW = gameRef.size.x;
+    final double h = drawerH;
+    const double collapsedH = 56.0;
+
+    add(SpriteComponent()
+      ..sprite = Sprite(gameRef.images.fromCache('Paneles/Panel_DescripciónPlanta_05.png'))
+      ..size = Vector2(screenW, h + collapsedH)
+      ..position = Vector2.zero());
+
+    final double marginSide = screenW * 0.22;
+    const double topReserved = 62.0;
+    const double paddingV = 6.5;
+    const double labelFontSize = 7.2;
+    const double labelGap = 2.2;
+    const double titleFontSize = 9.0;
+    const double titleGap = 6.5;
+
+    final double usableH = h - topReserved - paddingV;
+    final double sectionH = usableH / 3;
+    final double iconH = sectionH * 0.55;
+
+    double currentY = topReserved;
+
+    add(_sectionTitle('CATEGORÍA', screenW / 2, currentY));
+    currentY += titleFontSize + titleGap;
+    _addIconRow([
+      {'path': 'Botones/Boton_Categoría_01.png', 'label': 'Solar'},
+      {'path': 'Botones/Boton_Categoría_02.png', 'label': 'XeroAto'},
+      {'path': 'Botones/Boton_Categoría_03.png', 'label': 'Templado'},
+      {'path': 'Botones/Boton_Categoría_04.png', 'label': 'Montaña'},
+      {'path': 'Botones/Boton_Categoría_05.png', 'label': 'Hidro'},
+    ], screenW, marginSide, currentY, iconH, labelFontSize, labelGap);
+    currentY += sectionH;
+
+    add(_sectionTitle('ETAPA', screenW / 2, currentY));
+    currentY += titleFontSize + titleGap;
+    _addIconRow([
+      {'path': 'Botones/Boton_Estado_01.png', 'label': 'Semilla'},
+      {'path': 'Botones/Boton_Estado_02.png', 'label': 'Arbusto\nPequeño'},
+      {'path': 'Botones/Boton_Estado_03.png', 'label': 'Arbusto\nGrande'},
+      {'path': 'Botones/Boton_Estado_04.png', 'label': 'ENT'},
+    ], screenW, marginSide, currentY, iconH, labelFontSize, labelGap);
+    currentY += sectionH;
+
+    add(_sectionTitle('URGENCIA', screenW / 2, currentY));
+    currentY += titleFontSize + titleGap;
+    _addIconRow([
+      {'path': 'Botones/Boton_Urgencia_03.png', 'label': 'Alta'},
+      {'path': 'Botones/Boton_Urgencia_02.png', 'label': 'Media'},
+      {'path': 'Botones/Boton_Urgencia_01.png', 'label': 'Baja'},
+    ], screenW, marginSide, currentY, iconH, labelFontSize, labelGap);
+  }
+
+  TextComponent _sectionTitle(String text, double cx, double y) {
+    return TextComponent(
+      text: text,
+      anchor: Anchor.topCenter,
+      position: Vector2(cx, y),
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontSize: 9,
+          fontFamily: 'Press Start 2P',
+          color: Color(0xFF3E2A1F),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  void _addIconRow(
+    List<Map<String, String>> items,
+    double rowW,
+    double marginSide,
+    double startY,
+    double iconH,
+    double labelFontSize,
+    double labelGap,
+  ) {
+    final int count = items.length;
+    final double usableW = rowW - marginSide * 2;
+    final double cellW = usableW / count;
+
+    for (int i = 0; i < count; i++) {
+      final path = items[i]['path']!;
+      final label = items[i]['label']!;
+      final img = gameRef.images.fromCache(path);
+      final double ratio = img.width / img.height;
+      final double iconW = iconH * ratio;
+      final double cellX = marginSide + cellW * i;
+      final double iconX = cellX + (cellW - iconW) / 2;
+
+      add(SpriteComponent()
+        ..sprite = Sprite(gameRef.images.fromCache(path))
+        ..size = Vector2(iconW, iconH)
+        ..position = Vector2(iconX, startY));
+
+      add(TextComponent(
+        text: label,
+        anchor: Anchor.topCenter,
+        position: Vector2(cellX + cellW / 2, startY + iconH + labelGap),
+        textRenderer: TextPaint(
+          style: TextStyle(
+            fontSize: labelFontSize,
+            fontFamily: 'Press Start 2P',
+            color: const Color(0xFF3E2A1F),
+          ),
+        ),
+      ));
+    }
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    event.continuePropagation = false;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (!isVisible) return;
+    super.render(canvas);
+  }
+
+  @override
+  void renderTree(Canvas canvas) {
+    if (!isVisible) return;
+    super.renderTree(canvas);
+  }
+}
 
 // -------------------------------------------------------
 // Slot tappable
@@ -165,6 +407,8 @@ class _TappableSlot extends PositionComponent with TapCallbacks {
   @override
   void onTapDown(TapDownEvent event) {
     if (_expanded) return;
+    // Click al seleccionar una planta del inventario
+    AudioManager.click();
     _expanded = true;
     gameRef.add(_ExpandedOverlay(
       gameRef: gameRef,
@@ -272,23 +516,28 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
     final double btnY = panelY + panelSize + btnGap;
     final double btnW = panelSize * 0.42;
 
-    add(ImageButton(
+    // Botón Volver — click y cierra overlay
+    add(_ImageButton(
       label: 'Volver',
       position: Vector2(panelX, btnY),
       btnSize: Vector2(btnW, btnH),
       gameRef: gameRef,
       onTap: () {
+        AudioManager.click();
         gameRef.remove(this);
         onClose();
       },
     ));
 
-    add(ImageButton(
+    // Botón Seleccionar — click, detiene música y navega
+    add(_ImageButton(
       label: 'Seleccionar',
       position: Vector2(panelX + panelSize - btnW, btnY),
       btnSize: Vector2(btnW, btnH),
       gameRef: gameRef,
       onTap: () {
+        AudioManager.click();
+        AudioManager.stopMusica();
         gameRef.remove(this);
         onClose();
         if (gameRef is InventoryScreen) {
@@ -301,5 +550,74 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
   @override
   void onTapDown(TapDownEvent event) {
     event.continuePropagation = true;
+  }
+}
+
+// -------------------------------------------------------
+// Botón con imagen
+// -------------------------------------------------------
+class _ImageButton extends PositionComponent with TapCallbacks {
+  final String label;
+  final VoidCallback onTap;
+  final Vector2 btnSize;
+  final FlameGame gameRef;
+
+  _ImageButton({
+    required this.label,
+    required Vector2 position,
+    required this.btnSize,
+    required this.gameRef,
+    required this.onTap,
+  }) {
+    this.position = position;
+    size = btnSize;
+  }
+
+  @override
+  Future<void> onLoad() async {
+    add(SpriteComponent()
+      ..sprite = Sprite(gameRef.images.fromCache('Botones/Boton_General_01a.png'))
+      ..size = btnSize);
+
+    add(TextComponent(
+      text: label,
+      anchor: Anchor.center,
+      position: btnSize / 2,
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontSize: 9,
+          fontFamily: 'Press Start 2P',
+          color: Color(0xFFFFFFFF),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ));
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    onTap();
+    event.continuePropagation = false;
+  }
+}
+
+// -------------------------------------------------------
+// Botón cerrar — detiene música del inventario y navega
+// -------------------------------------------------------
+class CloseButtonComponent extends SpriteComponent with TapCallbacks {
+  final BuildContext context;
+  CloseButtonComponent(this.context);
+
+  @override
+  Future<void> onLoad() async {
+    sprite = await Sprite.load('Botones/Boton_Cerrar_01.png');
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    AudioManager.click();
+    AudioManager.stopMusica();
+    GoRouter.of(context).go('/plant_game');
+    event.continuePropagation = false;
   }
 }
