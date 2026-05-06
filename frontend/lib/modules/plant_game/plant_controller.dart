@@ -56,7 +56,7 @@ class PlantController extends ChangeNotifier {
 
       if (_currentTree != null) {
         _ensureDefaultPlant();          // garantiza que siempre haya una planta activa
-        applyPassiveDecay();            // aplica decay antes de mostrar estado
+        await applyPassiveDecay();            // aplica decay antes de mostrar estado
         _currentUser = _userModelFromTree(_currentTree!);
         notifyListeners();
         return;
@@ -95,7 +95,8 @@ class PlantController extends ChangeNotifier {
         subid: 'pasto',
         desbloqueada: true,
         estado: TreeEstado(fase: 'semilla'),
-        recursosAplicados: TreeRecursosAplicados(),
+        // Se le otorgan recursos iniciales para que no muera en los primeros 10 minutos
+        recursosAplicados: TreeRecursosAplicados(sol: 10, agua: 10, composta: 0),
         lastInteraction: DateTime.now().toUtc(),
       );
       _currentTree!.plantas.add(defaultPasto);
@@ -117,7 +118,7 @@ class PlantController extends ChangeNotifier {
   ///   • Plantas ya muertas o no desbloqueadas: se omiten.
   ///
   /// Se llama al cargar la sesión y al importar datos de Unity.
-  void applyPassiveDecay() {
+  Future<void> applyPassiveDecay() async {
     if (_currentTree == null) return;
     final now = DateTime.now().toUtc();
     bool changed = false;
@@ -126,8 +127,10 @@ class PlantController extends ChangeNotifier {
       if (!plant.desbloqueada) continue;
       if (plant.estado.fase == 'muerto') continue;
 
+      final lastInteraction = await _authStorage.getPlantLastInteraction(plant.instanceId);
+
       final minutesPassed =
-          now.difference(plant.lastInteraction).inMinutes;
+          now.difference(lastInteraction).inMinutes;
       if (minutesPassed < _decayIntervalMin) continue;
 
       final intervals = minutesPassed ~/ _decayIntervalMin;
@@ -147,9 +150,10 @@ class PlantController extends ChangeNotifier {
       }
 
       // Avanzar lastInteraction hasta el último intervalo completo procesado
-      plant.lastInteraction = plant.lastInteraction.add(
+      final newInteraction = lastInteraction.add(
         Duration(minutes: intervals * _decayIntervalMin),
       );
+      await _authStorage.savePlantLastInteraction(plant.instanceId, newInteraction);
 
       changed = true;
     }
@@ -223,7 +227,7 @@ class PlantController extends ChangeNotifier {
     final plant = activePlant;
     if (plant != null) {
       plant.recursosAplicados.sol += amount;
-      plant.lastInteraction = DateTime.now().toUtc();
+      // No reiniciamos lastInteraction para no alterar el reloj pasivo de decay (que también afecta al agua)
     }
     notifyListeners();
     return true; // siempre true si hay stock → animación siempre se dispara
@@ -238,7 +242,7 @@ class PlantController extends ChangeNotifier {
     final plant = activePlant;
     if (plant != null) {
       plant.recursosAplicados.agua += amount;
-      plant.lastInteraction = DateTime.now().toUtc();
+      // No reiniciamos lastInteraction para no alterar el reloj pasivo de decay (que también afecta al sol)
     }
     notifyListeners();
     return true;
@@ -303,7 +307,7 @@ class PlantController extends ChangeNotifier {
       _currentTree = await _treeStorage.loadTree();
       if (_currentTree != null) {
         // Aplicar decay pasivo tras el import (igual que al cargar la sesión)
-        applyPassiveDecay();
+        await applyPassiveDecay();
         _currentUser = _userModelFromTree(_currentTree!);
       }
       notifyListeners();

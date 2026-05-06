@@ -88,4 +88,21 @@ class LocalStorageService {
     await saveUser(user);
     return true;
   }
+
+  // ── Temporizador de Decaimiento de Plantas ────────────────────────────────
+  
+  /// Guarda el timestamp de la última interacción para una planta específica.
+  Future<void> savePlantLastInteraction(String instanceId, DateTime time) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('plant_interaction_$instanceId', time.toUtc().toIso8601String());
+  }
+
+  /// Obtiene el timestamp de la última interacción de una planta.
+  /// Si no existe, asume la hora actual UTC (nueva planta).
+  Future<DateTime> getPlantLastInteraction(String instanceId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('plant_interaction_$instanceId');
+    if (data == null) return DateTime.now().toUtc();
+    return DateTime.parse(data);
+  }
 }
