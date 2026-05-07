@@ -86,20 +86,41 @@ class PlantGameScreen extends FlameGame {
       ..anchor = Anchor.centerLeft
       ..position = Vector2(8 + size.x * 0.05, size.y / 2);
 
+    // Obtener controller para verificar cooldowns
+    final controller = Provider.of<PlantController>(context, listen: false);
+
     final sunGameButton = Button_sun_game(
       onPressed: () {
+        if (!controller.canPlaySunGame()) {
+          final remaining = controller.getSunGameRemainingCooldown();
+          final timeStr = controller.formatRemainingCooldown(remaining);
+          _showCooldownMessage('Sol', timeStr);
+          return;
+        }
         add(SunOverlay(context: context));
       },
     );
 
     final waterGameButton = Button_water_game(
       onPressed: () {
+        if (!controller.canPlayWaterGame()) {
+          final remaining = controller.getWaterGameRemainingCooldown();
+          final timeStr = controller.formatRemainingCooldown(remaining);
+          _showCooldownMessage('Agua', timeStr);
+          return;
+        }
         add(WaterOverlay(context: context));
       },
     );
     final compostGameButton = Button_compost_game(
       context: context,
       onPressed: () {
+        if (!controller.canPlayCompostGame()) {
+          final remaining = controller.getCompostGameRemainingCooldown();
+          final timeStr = controller.formatRemainingCooldown(remaining);
+          _showCooldownMessage('Composta', timeStr);
+          return;
+        }
         add(CompostOverlay(context: context));
       },
     );
@@ -326,6 +347,12 @@ class PlantGameScreen extends FlameGame {
     } catch (e) {
       // Silenciar errores de contexto - el widget se está disposeando
     }
+  }
+
+  void _showCooldownMessage(String gameName, String remainingTime) {
+    debugPrint('[$gameName Game] En cooldown - tiempo restante: $remainingTime');
+    // TODO: Mostrar snackbar visual en Flutter
+    // Por ahora solo debug log - se puede agregar UI después
   }
 }
 

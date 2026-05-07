@@ -86,6 +86,7 @@ class WaterOverlay extends FlameGame {
     try {
       final controller = Provider.of<PlantController>(context, listen: false);
       controller.addWater(reward);
+      controller.playWaterGame(); // Actualizar cooldown
       await controller.saveTree();
     } catch (e) {
       debugPrint('[WaterOverlay] Error al guardar: $e');

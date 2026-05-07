@@ -89,6 +89,7 @@ class CompostOverlay extends FlameGame {
       // La conversión automática (4 compost = 1 fertilizante) se hace en addCompost()
       if (compostGained > 0) {
         controller.addCompost(compostGained);
+        controller.playCompostGame(); // Actualizar cooldown
         await controller.saveTree();
       }
     } catch (e) {

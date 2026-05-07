@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../models/models.dart';
@@ -21,6 +22,21 @@ class PlantController extends ChangeNotifier {
   final TreeStorageService _treeStorage = TreeStorageService();
   final SharedTreeStorageService _sharedStorage = SharedTreeStorageService();
   static const _uuid = Uuid();
+
+  // ── Cooldowns de Minijuegos (persisten entre sesiones via SharedPreferences) ─
+  static const Duration sunGameCooldown = Duration(minutes: 10);
+  static const Duration waterGameCooldown = Duration(minutes: 10);
+  static const Duration compostGameCooldown = Duration(minutes: 3);
+
+  // Keys para SharedPreferences
+  static const String _cooldownSunKey = 'cooldown_sun';
+  static const String _cooldownWaterKey = 'cooldown_water';
+  static const String _cooldownCompostKey = 'cooldown_compost';
+
+  // Timestamps de último juego (cargados desde SharedPreferences)
+  DateTime? _lastSunGameTime;
+  DateTime? _lastWaterGameTime;
+  DateTime? _lastCompostGameTime;
 
   // ── Requisitos de evolución por tipo y etapa ─────────────────────────────────
   // Formato: {tipo: {fase: {sun: X, water: Y}}}
@@ -148,6 +164,7 @@ class PlantController extends ChangeNotifier {
         await applyPassiveDecay();
         await saveTree();
         _currentUser = _userModelFromTree(_currentTree!);
+        await _loadCooldowns();
         notifyListeners();
         return;
       }
@@ -161,6 +178,7 @@ class PlantController extends ChangeNotifier {
       _currentTree = _treeFromUserModel(_currentUser!);
       _ensureDefaultPlant();
       await saveTree();                  // persiste el tree con la planta pasto inicial
+      await _loadCooldowns();            // cargar cooldowns desde SharedPreferences
       notifyListeners();
     } catch (e) {
       debugPrint('[PlantController] Error al cargar datos: $e');
@@ -820,5 +838,117 @@ class PlantController extends ChangeNotifier {
     } catch (_) {
       return PlantType.solar;
     }
+  }
+
+  // ── Cooldowns de Minijuegos ─────────────────────────────────────────────────
+
+  /// Carga los timestamps de cooldown desde SharedPreferences.
+  Future<void> _loadCooldowns() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now();
+
+      final sunStr = prefs.getString(_cooldownSunKey);
+      final waterStr = prefs.getString(_cooldownWaterKey);
+      final compostStr = prefs.getString(_cooldownCompostKey);
+
+      _lastSunGameTime = sunStr != null ? DateTime.tryParse(sunStr) : null;
+      _lastWaterGameTime = waterStr != null ? DateTime.tryParse(waterStr) : null;
+      _lastCompostGameTime = compostStr != null ? DateTime.tryParse(compostStr) : null;
+
+      debugPrint('[Cooldowns] Sun: $_lastSunGameTime, Water: $_lastWaterGameTime, Compost: $_lastCompostGameTime');
+    } catch (e) {
+      debugPrint('[Cooldowns] Error al cargar: $e');
+    }
+  }
+
+  /// Guarda los timestamps de cooldown en SharedPreferences.
+  Future<void> _saveCooldowns() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      if (_lastSunGameTime != null) {
+        await prefs.setString(_cooldownSunKey, _lastSunGameTime!.toIso8601String());
+      }
+      if (_lastWaterGameTime != null) {
+        await prefs.setString(_cooldownWaterKey, _lastWaterGameTime!.toIso8601String());
+      }
+      if (_lastCompostGameTime != null) {
+        await prefs.setString(_cooldownCompostKey, _lastCompostGameTime!.toIso8601String());
+      }
+    } catch (e) {
+      debugPrint('[Cooldowns] Error al guardar: $e');
+    }
+  }
+
+  /// Retorna true si el minijuego del Sol está disponible (pasó el cooldown).
+  bool canPlaySunGame() {
+    if (_lastSunGameTime == null) return true;
+    return DateTime.now().difference(_lastSunGameTime!) >= sunGameCooldown;
+  }
+
+  /// Retorna true si el minijuego del Agua está disponible (pasó el cooldown).
+  bool canPlayWaterGame() {
+    if (_lastWaterGameTime == null) return true;
+    return DateTime.now().difference(_lastWaterGameTime!) >= waterGameCooldown;
+  }
+
+  /// Retorna true si el minijuego de Composta está disponible (pasó el cooldown).
+  bool canPlayCompostGame() {
+    if (_lastCompostGameTime == null) return true;
+    return DateTime.now().difference(_lastCompostGameTime!) >= compostGameCooldown;
+  }
+
+  /// Retorna el tiempo restante de cooldown del Sol, o null si está disponible.
+  Duration? getSunGameRemainingCooldown() {
+    if (_lastSunGameTime == null) return null;
+    final elapsed = DateTime.now().difference(_lastSunGameTime!);
+    final remaining = sunGameCooldown - elapsed;
+    return remaining.isNegative ? null : remaining;
+  }
+
+  /// Retorna el tiempo restante de cooldown del Agua, o null si está disponible.
+  Duration? getWaterGameRemainingCooldown() {
+    if (_lastWaterGameTime == null) return null;
+    final elapsed = DateTime.now().difference(_lastWaterGameTime!);
+    final remaining = waterGameCooldown - elapsed;
+    return remaining.isNegative ? null : remaining;
+  }
+
+  /// Retorna el tiempo restante de cooldown de Composta, o null si está disponible.
+  Duration? getCompostGameRemainingCooldown() {
+    if (_lastCompostGameTime == null) return null;
+    final elapsed = DateTime.now().difference(_lastCompostGameTime!);
+    final remaining = compostGameCooldown - elapsed;
+    return remaining.isNegative ? null : remaining;
+  }
+
+  /// Registra que el usuario completó el minijuego del Sol y guarda en SharedPreferences.
+  void playSunGame() {
+    _lastSunGameTime = DateTime.now();
+    _saveCooldowns();
+    notifyListeners();
+  }
+
+  /// Registra que el usuario completó el minijuego del Agua y guarda en SharedPreferences.
+  void playWaterGame() {
+    _lastWaterGameTime = DateTime.now();
+    _saveCooldowns();
+    notifyListeners();
+  }
+
+  /// Registra que el usuario completó el minijuego de Composta y guarda en SharedPreferences.
+  void playCompostGame() {
+    _lastCompostGameTime = DateTime.now();
+    _saveCooldowns();
+    notifyListeners();
+  }
+
+  /// Formatea la duración restante para mostrar al usuario (ej: "9:32" o "Listo").
+  String formatRemainingCooldown(Duration? duration) {
+    if (duration == null) return 'Listo';
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 }
