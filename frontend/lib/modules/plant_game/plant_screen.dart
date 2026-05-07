@@ -58,6 +58,8 @@ class PlantGameScreen extends FlameGame {
   late RowComponent _rowDown;
 
   bool _isLayoutReady = false;
+  String _lastPlantType = ''; // Para detectar cambios de planta activa
+  int _lastPlantStage = 2;
 
   PlantGameScreen(this.context);
    @override
@@ -65,13 +67,8 @@ class PlantGameScreen extends FlameGame {
 
   @override
   Future<void> onLoad() async {
-    // Cargar imágenes de Pasto (fallback) al inicio
-    await images.loadAll([
-      'Planta/Pasto/fase1_ss.png',
-      'Planta/Pasto/fase2_ss.png',
-      'Planta/Pasto/fase3_ss.png',
-      'Planta/Pasto/fase4_ss.png',
-    ]);
+    // NO pre-cargar imágenes - cargar bajo demanda cuando se seleccione una planta
+    // Esto evita el problema de assets no encontrados al inicio
 
     // Cargar datos del .tree al iniciar y esperar para usar la planta real
     final controller = Provider.of<PlantController>(context, listen: false);
@@ -310,6 +307,22 @@ class PlantGameScreen extends FlameGame {
       if (context == null) return;
       final controller = Provider.of<PlantController>(context, listen: false);
     final plantType = controller.activePlant?.id ?? 'pasto';
+    
+    // Detectar cambio de planta activa y cargar bajo demanda
+    if (plantType != _lastPlantType) {
+      _lastPlantType = plantType;
+      
+      // Determinar la fase
+      final fase = controller.activePlant?.estado.fase ?? 'arbusto';
+      int newStage = 2;
+      if (fase == 'semilla') newStage = 1;
+      else if (fase == 'planta') newStage = 3;
+      else if (fase == 'ent') newStage = 4;
+      
+      // Cargar bajo demanda las imágenes de la nueva planta
+      _plant.updatePlant(plantType, newStage);
+      debugPrint('[PlantScreen] 🔄 Planta cambiada a: $plantType (fase: $fase)');
+    }
 
     if (controller.showEvolutionAnimation) {
       final anim = Animation_evolution(

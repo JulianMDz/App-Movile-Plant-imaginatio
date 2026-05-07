@@ -175,23 +175,34 @@ class PlantController extends ChangeNotifier {
   void _ensureDefaultPlant() {
     if (_currentTree == null) return;
 
-    final hasActivePasto = _currentTree!.plantas.any(
-      (p) => p.id == 'pasto' && p.desbloqueada && p.estado.fase != 'muerto',
-    );
+    if (_currentTree!.plantas.isNotEmpty) return;
 
-    if (!hasActivePasto) {
-      final defaultPasto = TreePlanta(
-        id: 'pasto',
-        instanceId: _uuid.v4(),   // UUID único e inmutable
-        subid: 'pasto',
+    final plantsToCreate = [
+      ('pasto', 'semilla'),
+      ('pasto', 'arbusto'),
+      ('aliso', 'semilla'),
+      ('aliso', 'arbusto'),
+      ('cedrillo', 'planta'),
+      ('cucharo', 'semilla'),
+      ('alcaparro grande', 'arbusto'),
+      ('espino', 'planta'),
+      ('roble', 'ent'),
+      ('manzano', 'planta'),
+    ];
+
+    for (int i = 0; i < plantsToCreate.length; i++) {
+      final (id, fase) = plantsToCreate[i];
+      final plant = TreePlanta(
+        id: id,
+        instanceId: '${_uuid.v4()}_$i',
+        subid: id,
         desbloqueada: true,
-        estado: TreeEstado(fase: 'semilla'),
-        // Se le otorgan recursos iniciales para que no muera en los primeros 10 minutos
-        recursosAplicados: TreeRecursosAplicados(sol: 1, agua: 1, fertilizante: 0),
+        estado: TreeEstado(fase: fase),
+        recursosAplicados: TreeRecursosAplicados(sol: 3, agua: 3, fertilizante: 1),
       );
-      _currentTree!.plantas.add(defaultPasto);
-      debugPrint('[PlantController] 🌱 Planta pasto por defecto añadida al tree.');
+      _currentTree!.plantas.add(plant);
     }
+    debugPrint('[PlantController] 🌱 ${plantsToCreate.length} plantas creadas para testing de selección');
   }
 
   // ── Decay pasivo (dominio 🟢 Flutter) ─────────────────────────────────
@@ -202,67 +213,54 @@ class PlantController extends ChangeNotifier {
   /// Calcula cuántos intervalos de 10 min pasaron y descuenta recursos_aplicados.
   ///
   /// Reglas:
+  ///   • Solo aplica decay a la planta activa (seleccionada por el usuario).
   ///   • Agua y Sol: −1 por cada 10 min transcurridos desde lastInteraction.
   ///   • Si agua ≤0 O sol ≤0: estado.fase = 'muerto'.
   ///   • Composta: NO decae (el usuario la acumula y aplica manualmente).
-  ///   • Plantas ya muertas o no desbloqueadas: se omiten.
+  ///   • Plantas no activas: no se les aplica decay.
   ///
   /// Se llama al cargar la sesión y al importar datos de Unity.
   Future<void> applyPassiveDecay() async {
     if (_currentTree == null) return;
+
+    final plant = activePlant;
+    if (plant == null) return;
+
     final now = DateTime.now().toUtc();
-    bool changed = false;
+    final lastInteraction = await _authStorage.getPlantLastInteraction(plant.instanceId);
 
-    for (final plant in _currentTree!.plantas) {
-      if (!plant.desbloqueada) continue;
-      if (plant.estado.fase == 'muerto') continue;
+    final minutesPassed = now.difference(lastInteraction).inMinutes;
+    if (minutesPassed < _decayIntervalMin) return;
 
-      final lastInteraction = await _authStorage.getPlantLastInteraction(plant.instanceId);
+    final intervals = minutesPassed ~/ _decayIntervalMin;
 
-      final minutesPassed =
-          now.difference(lastInteraction).inMinutes;
-      if (minutesPassed < _decayIntervalMin) continue;
+    plant.recursosAplicados.agua =
+        (plant.recursosAplicados.agua - intervals).clamp(0, 9999);
+    plant.recursosAplicados.sol =
+        (plant.recursosAplicados.sol - intervals).clamp(0, 9999);
 
-      final intervals = minutesPassed ~/ _decayIntervalMin;
-
-      // Descontar agua y sol aplicados (no el inventario del usuario)
-      plant.recursosAplicados.agua =
-          (plant.recursosAplicados.agua - intervals).clamp(0, 9999);
-      plant.recursosAplicados.sol =
-          (plant.recursosAplicados.sol - intervals).clamp(0, 9999);
-
-      // Condición de muerte: sin agua O sin sol
-      if (plant.recursosAplicados.agua <= 0 || plant.recursosAplicados.sol <= 0) {
-        plant.estado.fase = 'muerto';
-        _showDeathAnimation = true;
-        debugPrint(
-          '[PlantController] 🚨 Planta ${plant.id} ha muerto por falta de recursos.'
-        );
-      } else {
-        // Verificar estado de peligro después del decay
-        final sol = plant.recursosAplicados.sol;
-        final agua = plant.recursosAplicados.agua;
-        if (sol <= 2 || agua <= 2) {
-          _showCriticalAnimation = true;
-        } else if (sol <= 4 || agua <= 4) {
-          _showDangerAnimation = true;
-        }
-      }
-
-      // Avanzar lastInteraction hasta el último intervalo completo procesado
-      final newInteraction = lastInteraction.add(
-        Duration(minutes: intervals * _decayIntervalMin),
+    if (plant.recursosAplicados.agua <= 0 || plant.recursosAplicados.sol <= 0) {
+      plant.estado.fase = 'muerto';
+      _showDeathAnimation = true;
+      debugPrint(
+        '[PlantController] 🚨 Planta activa ${plant.id} ha muerto por falta de recursos.'
       );
-      await _authStorage.savePlantLastInteraction(plant.instanceId, newInteraction);
-
-      changed = true;
+    } else {
+      final sol = plant.recursosAplicados.sol;
+      final agua = plant.recursosAplicados.agua;
+      if (sol <= 2 || agua <= 2) {
+        _showCriticalAnimation = true;
+      } else if (sol <= 4 || agua <= 4) {
+        _showDangerAnimation = true;
+      }
     }
 
-    if (changed) {
-      debugPrint('[PlantController] ⏳ Decay pasivo aplicado.');
-      // No llamamos saveTree() aquí para no bloquear la carga inicial;
-      // el caller debe hacerlo si lo necesita persistir inmediatamente.
-    }
+    final newInteraction = lastInteraction.add(
+      Duration(minutes: intervals * _decayIntervalMin),
+    );
+    await _authStorage.savePlantLastInteraction(plant.instanceId, newInteraction);
+
+    debugPrint('[PlantController] ⏳ Decay aplicado solo a planta activa: ${plant.id}');
   }
 
   // ── Métodos de recursos (dominio 🟢 Flutter) ──────────────────────────────
@@ -378,8 +376,8 @@ class PlantController extends ChangeNotifier {
     final plant = activePlant;
     if (plant != null) {
       plant.recursosAplicados.sol += amount;
-      // No reiniciamos lastInteraction para no alterar el reloj pasivo de decay (que también afecta al agua)
       _checkEvolution(plant);
+      saveTree(); // Persistir cambios
     }
     notifyListeners();
     return true; // siempre true si hay stock → animación siempre se dispara
@@ -394,7 +392,7 @@ class PlantController extends ChangeNotifier {
     final plant = activePlant;
     if (plant != null) {
       plant.recursosAplicados.agua += amount;
-      // No reiniciamos lastInteraction para no alterar el reloj pasivo de decay (que también afecta al sol)
+      saveTree(); // Persistir cambios
     }
     notifyListeners();
     return true;
@@ -411,6 +409,7 @@ class PlantController extends ChangeNotifier {
     if (plant != null) {
       plant.recursosAplicados.fertilizante += amount;
       _checkEvolution(plant);
+      saveTree(); // Persistir cambios
     }
     notifyListeners();
     return true;
@@ -563,7 +562,7 @@ class PlantController extends ChangeNotifier {
   void _checkEvolution(TreePlanta plant) {
     if (plant.estado.fase == 'ent') return;
 
-    final plantType = plant.id;
+    final plantType = _getPlantType(plant.id);
     final requirements = _evolutionRequirements[plantType];
     if (requirements == null) return;
 
