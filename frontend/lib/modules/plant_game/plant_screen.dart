@@ -61,6 +61,7 @@ class PlantGameScreen extends FlameGame {
   bool _isLayoutReady = false;
   String _lastPlantType = ''; // Para detectar cambios de planta activa
   int _lastPlantStage = 2;
+  String _lastPlantFase = ''; // Para detectar cambios de fase (evolución)
 
   PlantGameScreen(this.context);
    @override
@@ -348,13 +349,14 @@ class PlantGameScreen extends FlameGame {
       if (context == null) return;
       final controller = Provider.of<PlantController>(context, listen: false);
     final plantType = controller.activePlant?.id ?? 'pasto';
+    final fase = controller.activePlant?.estado.fase ?? 'arbusto';
     
-    // Detectar cambio de planta activa y cargar bajo demanda
-    if (plantType != _lastPlantType) {
+    // Detectar cambio de planta activa O cambio de fase (evolución/muerte)
+    if (plantType != _lastPlantType || fase != _lastPlantFase) {
       _lastPlantType = plantType;
+      _lastPlantFase = fase;
       
-      // Determinar la fase
-      final fase = controller.activePlant?.estado.fase ?? 'arbusto';
+      // Determinar el stage según la fase
       int newStage = 2;
       if (fase == 'semilla') newStage = 1;
       else if (fase == 'planta') newStage = 3;
@@ -362,7 +364,7 @@ class PlantGameScreen extends FlameGame {
       
       // Cargar bajo demanda las imágenes de la nueva planta
       _plant.updatePlant(plantType, newStage);
-      debugPrint('[PlantScreen] 🔄 Planta cambiada a: $plantType (fase: $fase)');
+      debugPrint('[PlantScreen] 🔄 Planta cambiada a: $plantType (fase: $fase, stage: $newStage)');
     }
 
     if (controller.showEvolutionAnimation) {

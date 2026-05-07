@@ -24,9 +24,9 @@ class PlantController extends ChangeNotifier {
   static const _uuid = Uuid();
 
   // ── Cooldowns de Minijuegos (persisten entre sesiones via SharedPreferences) ─
-  static const Duration sunGameCooldown = Duration(seconds: 10);
-  static const Duration waterGameCooldown = Duration(seconds: 10);
-  static const Duration compostGameCooldown = Duration(seconds: 10);
+  static const Duration sunGameCooldown = Duration(minutes: 10);
+  static const Duration waterGameCooldown = Duration(minutes: 10);
+  static const Duration compostGameCooldown = Duration(minutes: 3);
 
   // Keys para SharedPreferences
   static const String _cooldownSunKey = 'cooldown_sun';
@@ -79,6 +79,18 @@ class PlantController extends ChangeNotifier {
     'arbusto': 6,
     'planta': 8,
   };
+
+  // Recursos mínimos para cada fase (al evolucionar se resetean a estos valores)
+  static const Map<String, Map<String, int>> _minResourcesByPhase = {
+    'semilla': {'sol': 1, 'agua': 1, 'fertilizante': 0},
+    'arbusto': {'sol': 1, 'agua': 1, 'fertilizante': 0},
+    'planta': {'sol': 1, 'agua': 1, 'fertilizante': 0},
+    'ent': {'sol': 1, 'agua': 1, 'fertilizante': 0},
+  };
+
+  Map<String, int> _getMinResourcesForPhase(String fase) {
+    return _minResourcesByPhase[fase] ?? {'sol': 1, 'agua': 1, 'fertilizante': 0};
+  }
 
   // Flags para notify de animaciones
 
@@ -199,14 +211,6 @@ class PlantController extends ChangeNotifier {
 
     final plantsToCreate = [
       ('pasto', 'semilla'),
-      ('aliso', 'semilla'),
-      ('aliso', 'semilla'),
-      ('cedrillo', 'semilla'),
-      ('cucharo', 'semilla'),
-      ('alcaparro grande', 'semilla'),
-      ('espino', 'semilla'),
-      ('roble', 'semilla'),
-      ('manzano', 'semilla'),
     ];
 
     for (int i = 0; i < plantsToCreate.length; i++) {
@@ -664,8 +668,15 @@ class PlantController extends ChangeNotifier {
       }
 
       plant.estado.fase = nextFase;
+      
+      // Resetear recursos al mínimo de la nueva fase
+      final minResources = _getMinResourcesForPhase(nextFase);
+      plant.recursosAplicados.sol = minResources['sol'] ?? 1;
+      plant.recursosAplicados.agua = minResources['agua'] ?? 1;
+      plant.recursosAplicados.fertilizante = minResources['fertilizante'] ?? 0;
+      
       _showEvolutionAnimation = true;
-      debugPrint('[PlantController] 🌱 Planta evolucionó automáticamente a: $nextFase');
+      debugPrint('[PlantController] 🌱 Planta evolucionó automáticamente a: $nextFase (recursos reseteados: sol=${plant.recursosAplicados.sol}, agua=${plant.recursosAplicados.agua}, fertilizante=${plant.recursosAplicados.fertilizante})');
     }
   }
 
