@@ -84,8 +84,11 @@ class Button_resource_sun extends SpriteButtonComponent with HasGameRef {
     final success = controller.spendSun();
     if (!success) return; // sin stock — no hacer nada
 
+    // Obtener tipo de planta activa para la animación
+    final plantType = controller.activePlant?.id ?? 'pasto';
+
     // Lanzar animación visual
-    final anim = Animation_sun('pasto', Vector2(gameRef.size.x, gameRef.size.y))
+    final anim = Animation_sun(plantType, Vector2(gameRef.size.x, gameRef.size.y))
       ..anchor = Anchor.center
       ..position = Vector2(gameRef.size.x / 2, gameRef.size.y / 2);
     gameRef.add(anim);

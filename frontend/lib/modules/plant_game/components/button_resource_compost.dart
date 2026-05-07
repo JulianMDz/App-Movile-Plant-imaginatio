@@ -82,7 +82,9 @@ class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
     final success = controller.spendCompost(amount: 4);
     if (!success) return;
 
-    final anim = Animation_compost('pasto', Vector2(gameRef.size.x, gameRef.size.y))
+    final plantType = controller.activePlant?.id ?? 'pasto';
+
+    final anim = Animation_compost(plantType, Vector2(gameRef.size.x, gameRef.size.y))
       ..anchor = Anchor.center
       ..position = Vector2(gameRef.size.x / 2, gameRef.size.y / 2);
     gameRef.add(anim);
