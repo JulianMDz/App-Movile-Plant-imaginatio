@@ -2,9 +2,9 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
+import 'package:frontend/core/audio.dart';
 import 'package:frontend/modules/inventory/components/button_close.dart';
 import 'package:frontend/modules/inventory/components/filter_panel.dart';
-import 'package:frontend/modules/inventory/components/filter_panel_drawer.dart';
 import 'package:frontend/modules/inventory/components/image_button.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -136,9 +136,15 @@ class InventoryScreen extends FlameGame {
       'Botones/Boton_Categoría_01.png',
       'Botones/Boton_Categoría_02.png',
       'Botones/Boton_Categoría_03.png',
+      'Botones/Boton_Categoría_04.png',
+      'Botones/Boton_Categoría_05.png',
+      'Botones/Boton_Estado_01.png',
       'Botones/Boton_Estado_02.png',
       'Botones/Boton_Estado_03.png',
+      'Botones/Boton_Estado_04.png',
       'Botones/Boton_Urgencia_01.png',
+      'Botones/Boton_Urgencia_02.png',
+      'Botones/Boton_Urgencia_03.png',
       'Botones/Boton_Filtro.png',
       'Botones/Boton_General_01a.png',
       'Iconos/Icono_Semaforo_01.png',
@@ -666,70 +672,5 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
   }
 }
 
-// -------------------------------------------------------
-// Botón con imagen
-// -------------------------------------------------------
-class _ImageButton extends PositionComponent with TapCallbacks {
-  final String label;
-  final VoidCallback onTap;
-  final Vector2 btnSize;
-  final FlameGame gameRef;
 
-  _ImageButton({
-    required this.label,
-    required Vector2 position,
-    required this.btnSize,
-    required this.gameRef,
-    required this.onTap,
-  }) {
-    this.position = position;
-    size = btnSize;
-  }
-
-  @override
-  Future<void> onLoad() async {
-    add(SpriteComponent()
-      ..sprite = Sprite(gameRef.images.fromCache('Botones/Boton_General_01a.png'))
-      ..size = btnSize);
-
-    add(TextComponent(
-      text: label,
-      anchor: Anchor.center,
-      position: btnSize / 2,
-      textRenderer: TextPaint(
-        style: const TextStyle(
-          fontSize: 9,
-          fontFamily: 'Press Start 2P',
-          color: Color(0xFFFFFFFF),
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    ));
-  }
-
-  @override
-  void onTapDown(TapDownEvent event) {
-    onTap();
-    event.continuePropagation = false;
-  }
-}
-
-// -------------------------------------------------------
-// Botón cerrar
-// -------------------------------------------------------
-class CloseButtonComponent extends SpriteComponent with TapCallbacks {
-  final BuildContext context;
-  CloseButtonComponent(this.context);
-
-  @override
-  Future<void> onLoad() async {
-    sprite = await Sprite.load('Botones/Boton_Cerrar_01.png');
-  }
-
-  @override
-  void onTapDown(TapDownEvent event) {
-    GoRouter.of(context).go('/plant_game');
-    event.continuePropagation = false;
-  }
-}
 
