@@ -19,6 +19,7 @@ import 'package:frontend/modules/plant_game/components/Text_name.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_compost.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_sun.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_water.dart';
+import 'package:frontend/modules/plant_game/components/cooldown_indicator.dart';
 import 'package:frontend/modules/plant_game/components/panel_bar.dart';
 import 'package:frontend/modules/plant_game/components/panel_resource.dart';
 import 'package:frontend/modules/plant_game/components/panel_title.dart';
@@ -85,9 +86,6 @@ class PlantGameScreen extends FlameGame {
     _panelBar = PanelLayout(context: context)
       ..anchor = Anchor.centerLeft
       ..position = Vector2(8 + size.x * 0.05, size.y / 2);
-
-    // Obtener controller para verificar cooldowns
-    final controller = Provider.of<PlantController>(context, listen: false);
 
     final sunGameButton = Button_sun_game(
       onPressed: () {
@@ -187,6 +185,28 @@ class PlantGameScreen extends FlameGame {
       ..position = Vector2(size.x /2, size.y / 2+10);
 
     add(_layoutCenter);
+
+    // Indicadores de cooldown sobre los botones de minijuego
+    final sunCooldown = CooldownIndicator(
+      context: context,
+      gameType: 'sun',
+      position: Vector2(size.x / 2, size.y / 2 - 60),
+    );
+    add(sunCooldown);
+
+    final waterCooldown = CooldownIndicator(
+      context: context,
+      gameType: 'water',
+      position: Vector2(size.x / 2 - 80, size.y / 2 + 90),
+    );
+    add(waterCooldown);
+
+    final compostCooldown = CooldownIndicator(
+      context: context,
+      gameType: 'compost',
+      position: Vector2(size.x / 2 + 80, size.y / 2 + 90),
+    );
+    add(compostCooldown);
 
     add(_panelBar);
 
