@@ -416,6 +416,10 @@ class InventoryScreen extends FlameGame {
   void setState(VoidCallback fn) {
     fn();
 
+    // Limpiar el panel y el botón antiguos para evitar duplicados.
+    children.whereType<FilterPanelComponent>().forEach((component) => component.removeFromParent());
+    children.whereType<CloseButtonComponent>().forEach((component) => component.removeFromParent());
+
     add(FilterPanelComponent(gameRef: this));
 
     final closeBtn = CloseButtonComponent(context);
@@ -520,14 +524,11 @@ class _TappableSlot extends PositionComponent with TapCallbacks {
 
   @override
   void onTapDown(TapDownEvent event) {
-    if (plantIndex != null && onTap != null) {
-      onTap!(plantIndex!);
-      event.continuePropagation = false;
-      return;
-    }
     if (_expanded) return;
-    // Click al seleccionar una planta del inventario
+    if (plantIndex == null || onTap == null) return;
+
     AudioManager.click();
+    onTap!(plantIndex!);
     _expanded = true;
     gameRef.add(_ExpandedOverlay(
       gameRef: gameRef,
