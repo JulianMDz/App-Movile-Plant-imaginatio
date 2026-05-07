@@ -17,6 +17,7 @@ class Animation_evolution extends SpriteAnimationComponent {
         amount: 25,
         stepTime: 0.1,
         textureSize: Vector2(500, 500),
+        loop: false,
       ),
     );
   }

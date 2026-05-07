@@ -288,7 +288,7 @@ class PlantGameScreen extends FlameGame {
     )
       ..size = Vector2(size.x * 0.8, 80)
       ..anchor = Anchor.centerRight
-      ..position = Vector2(size.x - 8, size.y / 2);
+      ..position = Vector2(size.x , size.y / 2);
     add(_columnRight);
 
     _rowDown = RowComponent(

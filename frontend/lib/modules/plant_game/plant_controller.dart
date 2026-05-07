@@ -8,13 +8,13 @@ import '../../services/local_storage_service.dart';
 import '../../services/tree_storage_service.dart';
 import '../../services/shared_tree_storage_service.dart';
 
-/// Controlador de estado global del juego de plantas.
+/// Controlador de estado global del juego de evolutionas.
 ///
 /// Gestiona el [TreeData] (.tree v2) como modelo primario y el [UserModel]
-/// como modelo de compatibilidad interna (usado por PlantService).
+/// como modelo de compatibilidad interna (usado por animationService).
 ///
 /// Dominio de escritura (Regla de Oro):
-///   🟢 Flutter escribe: recursos.sol/agua/composta, planta.estado.fase, etc.
+///   🟢 Flutter escribe: recursos.sol/agua/composta, boola.estado.fase, etc.
 ///   🔴 Unity escribe: nivel, xp, salud, hp_actual, semillas.
 ///   PlantController NUNCA modifica campos 🔴.
 class PlantController extends ChangeNotifier {
@@ -24,9 +24,9 @@ class PlantController extends ChangeNotifier {
   static const _uuid = Uuid();
 
   // ── Cooldowns de Minijuegos (persisten entre sesiones via SharedPreferences) ─
-  static const Duration sunGameCooldown = Duration(minutes: 10);
-  static const Duration waterGameCooldown = Duration(minutes: 10);
-  static const Duration compostGameCooldown = Duration(minutes: 3);
+  static const Duration sunGameCooldown = Duration(seconds: 10);
+  static const Duration waterGameCooldown = Duration(seconds: 10);
+  static const Duration compostGameCooldown = Duration(seconds: 10);
 
   // Keys para SharedPreferences
   static const String _cooldownSunKey = 'cooldown_sun';
@@ -125,6 +125,8 @@ class PlantController extends ChangeNotifier {
   bool _showDeathAnimation = false;
   bool _showCriticalAnimation = false;
   bool _showDangerAnimation = false;
+  String? _plantUpdateEvent;
+  String? get plantUpdateEvent => _plantUpdateEvent;
 
   // ── Estado ────────────────────────────────────────────────────────────────
 
@@ -197,15 +199,14 @@ class PlantController extends ChangeNotifier {
 
     final plantsToCreate = [
       ('pasto', 'semilla'),
-      ('pasto', 'arbusto'),
       ('aliso', 'semilla'),
-      ('aliso', 'arbusto'),
-      ('cedrillo', 'planta'),
+      ('aliso', 'semilla'),
+      ('cedrillo', 'semilla'),
       ('cucharo', 'semilla'),
-      ('alcaparro grande', 'arbusto'),
-      ('espino', 'planta'),
-      ('roble', 'ent'),
-      ('manzano', 'planta'),
+      ('alcaparro grande', 'semilla'),
+      ('espino', 'semilla'),
+      ('roble', 'semilla'),
+      ('manzano', 'semilla'),
     ];
 
     for (int i = 0; i < plantsToCreate.length; i++) {
@@ -564,11 +565,12 @@ class PlantController extends ChangeNotifier {
 
   /// Evoluciona la planta activa a la siguiente etapa
   bool evolve() {
+    
     final plant = activePlant;
-    if (plant == null || !canEvolve()) return false;
+  if (plant == null || !canEvolve()) return false;
 
-    final currentFase = plant.estado.fase;
-    String nextFase;
+  final currentFase = plant.estado.fase;
+  String nextFase;
 
     switch (currentFase) {
       case 'semilla':
@@ -588,6 +590,7 @@ class PlantController extends ChangeNotifier {
     _showEvolutionAnimation = true;
 
     debugPrint('[PlantController] 🌱 Planta evolucionó a: $nextFase');
+    _plantUpdateEvent = plant.id; 
     notifyListeners();
     return true;
   }
