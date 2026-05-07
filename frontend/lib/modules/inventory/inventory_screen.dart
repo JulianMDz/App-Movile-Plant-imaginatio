@@ -10,7 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
 
-class InventoryScreen extends FlameGame {
+class InventoryScreen extends FlameGame with DragCallbacks {
   final BuildContext context;
   final int? initialSelectedIndex;
 
@@ -20,7 +20,17 @@ class InventoryScreen extends FlameGame {
   int _selectedPlantIndex = -1;
   List<PositionComponent> _plantSlots = [];
 
-  // Mapa de tipos de planta a carpetas base en assets
+  // Scroll vertical
+  double _scrollOffsetY = 0;
+  double _maxScrollY = 0;
+  bool _isDragging = false;
+  double _dragDistance = 0;
+
+  // Constantes de layout compartidas
+  static const double _collapsedH = 56.0;
+  static const double _marginTop = 42.0;
+  static const int _columns = 3;
+
   static const Map<String, List<String>> _plantTypeFolders = {
     'pasto': ['Pasto'],
     'solar': ['Cajeto', 'Espino', 'Drago', 'Alcaparro', 'Alcaparro grande'],
@@ -30,45 +40,31 @@ class InventoryScreen extends FlameGame {
     'templado': ['Manzano', 'Mangle', 'Sietecueros', 'Cedro'],
   };
 
-  // Intenta cargar imagen - si no existe, retorna path de Pasto
   String _getPlantImagePath(String plantId, String fase) {
     String faseNum;
     switch (fase) {
-      case 'semilla':
-        faseNum = '1';
-        break;
-      case 'arbusto':
-        faseNum = '2';
-        break;
-      case 'planta':
-        faseNum = '3';
-        break;
-      case 'ent':
-        faseNum = '4';
-        break;
-      default:
-        faseNum = '2';
+      case 'semilla': faseNum = '1'; break;
+      case 'arbusto': faseNum = '2'; break;
+      case 'planta':  faseNum = '3'; break;
+      case 'ent':     faseNum = '4'; break;
+      default:        faseNum = '2';
     }
 
-    // Intentar cargar la imagen de la planta específica
     final tryPath = 'Planta/$plantId/fase${faseNum}_ss.png';
     try {
       images.fromCache(tryPath);
       return tryPath;
     } catch (e) {
-      // Si falla, intentar buscar coincidencias en carpetas conocidas
       final lowerId = plantId.toLowerCase();
-      
       for (final folders in _plantTypeFolders.values) {
         for (final folder in folders) {
-          if (lowerId.contains(folder.toLowerCase()) || folder.toLowerCase().contains(lowerId)) {
-            // Probar carpeta base
+          if (lowerId.contains(folder.toLowerCase()) ||
+              folder.toLowerCase().contains(lowerId)) {
             final basePath = 'Planta/$folder/fase${faseNum}_ss.png';
             try {
               images.fromCache(basePath);
               return basePath;
             } catch (_) {
-              // Probar variaciones numéricas
               for (int i = 1; i <= 12; i++) {
                 final varPath = 'Planta/$folder$i/fase${faseNum}_ss.png';
                 try {
@@ -81,16 +77,11 @@ class InventoryScreen extends FlameGame {
         }
       }
     }
-
-    // Fallback final: Pasto (ya precargado)
     return 'Planta/Pasto/fase${faseNum}_ss.png';
   }
 
-  // Obtiene el nombre de display para mostrar
   String _getPlantDisplayName(String plantId) {
     final lowerId = plantId.toLowerCase();
-    
-    // Mapear a nombres legibles
     if (lowerId.contains('pasto')) return 'PASTO';
     if (lowerId.contains('alcaparro enano')) return 'ALCAPARRO ENANO';
     if (lowerId.contains('alcaparro')) return 'ALCAPARRO';
@@ -108,7 +99,6 @@ class InventoryScreen extends FlameGame {
     if (lowerId.contains('cedrillo')) return 'CEDRILLO';
     if (lowerId.contains('aliso')) return 'ALISO';
     if (lowerId.contains('dividivi')) return 'DIVIDIVI';
-    
     return plantId.toUpperCase();
   }
 
@@ -116,22 +106,18 @@ class InventoryScreen extends FlameGame {
   Future<void> onLoad() async {
     _selectedPlantIndex = initialSelectedIndex ?? -1;
 
-    // Capturamos context y controlador ANTES de cualquier await
     final ctx = context;
     _controller = Provider.of<PlantController>(ctx, listen: false);
 
-    // Cargar imágenes básicas que sabemos que existen
     await images.loadAll([
       'Paneles/Fondo_Inv_01.png',
       'Paneles/Panel_DescripciónPlanta_05.png',
       'Inventario/Panel_InvEspacio_01.png',
       'Inventario/Panel_InvEspacio_02.png',
-      // Fallback obligatorio: todas las fases de Pasto
       'Planta/Pasto/fase1_ss.png',
       'Planta/Pasto/fase2_ss.png',
       'Planta/Pasto/fase3_ss.png',
       'Planta/Pasto/fase4_ss.png',
-      // Botones necesarios
       'Botones/Boton_Cerrar_01.png',
       'Botones/Boton_Categoría_01.png',
       'Botones/Boton_Categoría_02.png',
@@ -150,21 +136,18 @@ class InventoryScreen extends FlameGame {
       'Iconos/Icono_Semaforo_01.png',
     ]);
 
-    // Música del inventario al abrir la pantalla
     await AudioManager.musicaInventario();
 
-    // Pre-cargar imágenes de las plantas activas antes de construir slots
     final plantsToLoad = _controller?.plants ?? [];
     for (final plant in plantsToLoad) {
       final plantId = plant.id;
       final fase = plant.estado.fase;
       final faseNum = _faseToNum(fase);
-      // Intentar las variantes conocidas de este plantId
       final candidates = _buildImageCandidates(plantId, faseNum);
       for (final path in candidates) {
         try {
           await images.load(path);
-          break; // detener al primer éxito
+          break;
         } catch (_) {}
       }
     }
@@ -175,7 +158,6 @@ class InventoryScreen extends FlameGame {
 
     add(FilterPanelComponent(gameRef: this));
 
-    // Capturamos context antes de usarlo (lo inicializamos arriba antes del primer await)
     final closeBtn = CloseButtonComponent(ctx);
     closeBtn.position = Vector2(size.x - 82, 10);
     closeBtn.size = Vector2(40, 40);
@@ -185,7 +167,6 @@ class InventoryScreen extends FlameGame {
     _loadPlantSlots();
   }
 
-  /// Convierte nombre de fase a número de sprite sheet.
   static String _faseToNum(String fase) {
     switch (fase) {
       case 'semilla': return '1';
@@ -196,13 +177,9 @@ class InventoryScreen extends FlameGame {
     }
   }
 
-  /// Construye la lista de rutas candidatas para una planta+fase.
-  /// Primero intenta la ruta exacta (plantId como carpeta), luego mapeos conocidos.
   List<String> _buildImageCandidates(String plantId, String faseNum) {
     final candidates = <String>[];
-    // Ruta directa (caso ideal: Unity exporta con el nombre de carpeta exacto)
     candidates.add('Planta/$plantId/fase${faseNum}_ss.png');
-    // Buscar en mapas de tipo → carpetas
     final lowerId = plantId.toLowerCase();
     for (final folders in _plantTypeFolders.values) {
       for (final folder in folders) {
@@ -212,9 +189,35 @@ class InventoryScreen extends FlameGame {
         }
       }
     }
-    // Fallback final: Pasto (siempre en cache)
     candidates.add('Planta/Pasto/fase${faseNum}_ss.png');
     return candidates;
+  }
+
+  // ── Cálculo de layout compartido ─────────────────────
+  double _getSlotSize() {
+    final double availableH = size.y - _collapsedH - _marginTop;
+    return availableH * 0.40;
+  }
+
+  double _getGap() {
+    final double slotSize = _getSlotSize();
+    final double totalSlotsW = slotSize * _columns;
+    final double totalGap = size.x - totalSlotsW;
+    return totalGap / (_columns + 1);
+  }
+
+  // Posición X base de una columna
+  double _colToX(int col) {
+    final double slotSize = _getSlotSize();
+    final double gap = _getGap();
+    return gap * (col + 1) + slotSize * col;
+  }
+
+  // Posición Y base de una fila (sin scroll)
+  double _rowToBaseY(int row) {
+    final double slotSize = _getSlotSize();
+    final double gap = _getGap();
+    return _marginTop + gap * (row + 1) + slotSize * row;
   }
 
   void _loadPlantSlots() {
@@ -223,10 +226,7 @@ class InventoryScreen extends FlameGame {
     }
     _plantSlots.clear();
 
-    _controller = Provider.of<PlantController>(
-      context,
-      listen: false,
-    );
+    _controller = Provider.of<PlantController>(context, listen: false);
 
     final plants = _controller?.plants ?? [];
     if (plants.isEmpty) {
@@ -234,43 +234,39 @@ class InventoryScreen extends FlameGame {
       return;
     }
 
-    const double collapsedH = 56.0;
-    const double marginTop = 42.0;
+    final int displayCount = plants.length;
+    final int rows = (displayCount / _columns).ceil();
+    final double slotSize = _getSlotSize();
+    final double gap = _getGap();
 
-    final double availableH = size.y - collapsedH - marginTop;
-    final double slotSize = availableH * 0.40;
+    // Alto total del contenido — para calcular scroll máximo
+    final double totalContentH = _marginTop + rows * slotSize + (rows + 1) * gap;
+    // Área visible disponible para los slots (sin drawer ni margen)
+    final double visibleH = size.y - _collapsedH;
+    _maxScrollY = (totalContentH - visibleH).clamp(0, double.infinity);
+    _scrollOffsetY = 0;
 
-    final double totalSlotsW = slotSize * 3;
-    final double totalGap = size.x - totalSlotsW;
-    final double gap = totalGap / 4;
-
-    final double slotY = marginTop + (availableH * 0.30 - slotSize) / 2;
-    final double finalSlotY = slotY < marginTop ? marginTop : slotY;
-
-    final displayCount = plants.length.clamp(0, 3);
     for (int i = 0; i < displayCount; i++) {
-      final x = gap * (i + 1) + slotSize * i;
-      _addPlantSlot(Vector2(x, finalSlotY), slotSize, slotSize, plants[i], i);
+      final int col = i % _columns;
+      final int row = i ~/ _columns;
+      final double x = _colToX(col);
+      final double y = _rowToBaseY(row);
+      _addPlantSlot(Vector2(x, y), slotSize, slotSize, plants[i], i);
     }
   }
 
   void _addDefaultSlots() {
-    const double collapsedH = 56.0;
-    const double marginTop = 26.0;
-    final double availableH = size.y - collapsedH - marginTop;
-    final double slotSize = availableH * 0.40;
-    final double totalSlotsW = slotSize * 3;
-    final double totalGap = size.x - totalSlotsW;
-    final double gap = totalGap / 4;
-    final double slotY = marginTop + (availableH * 0.30 - slotSize) / 2;
-    final double finalSlotY = slotY < marginTop ? marginTop : slotY;
+    final double slotSize = _getSlotSize();
+    final double gap = _getGap();
+    final double slotY = _marginTop + gap;
 
-    _addSlot(Vector2(gap, finalSlotY), slotSize, slotSize, true);
-    _addSlot(Vector2(gap * 2 + slotSize, finalSlotY), slotSize, slotSize, false);
-    _addSlot(Vector2(gap * 3 + slotSize * 2, finalSlotY), slotSize, slotSize, false);
+    _addSlot(Vector2(_colToX(0), slotY), slotSize, slotSize, true);
+    _addSlot(Vector2(_colToX(1), slotY), slotSize, slotSize, false);
+    _addSlot(Vector2(_colToX(2), slotY), slotSize, slotSize, false);
   }
 
-  void _addPlantSlot(Vector2 pos, double slotW, double slotH, dynamic plant, int index) {
+  void _addPlantSlot(
+      Vector2 pos, double slotW, double slotH, dynamic plant, int index) {
     final slot = PositionComponent()
       ..position = pos
       ..size = Vector2(slotW, slotH);
@@ -317,11 +313,10 @@ class InventoryScreen extends FlameGame {
           )
           ..size = Vector2(plantSize, plantSize)
           ..anchor = Anchor.center
-          // Posición restaurada al layout de referencia (imagen 4)
-          ..position = Vector2(slotW / 2, slotH /2));
+          ..position = Vector2(slotW / 2, slotH / 2));
       } catch (e) {
-        debugPrint('[Inventory] Error cargando imagen: $imagePath - usando Pasto fallback');
-        // Mostrar Pasto como fallback visual
+        debugPrint(
+            '[Inventory] Error cargando imagen: $imagePath - usando Pasto fallback');
         final fallbackImg = images.fromCache('Planta/Pasto/fase2_ss.png');
         final double plantSize = slotW * 0.4;
         slot.add(SpriteComponent()
@@ -362,7 +357,8 @@ class InventoryScreen extends FlameGame {
         return iconH * ratio;
       }).toList();
 
-      final double totalIconW = iconWidths.fold(0.0, (sum, w) => sum + w) + iconGap * (iconPaths.length - 1);
+      final double totalIconW = iconWidths.fold(0.0, (sum, w) => sum + w) +
+          iconGap * (iconPaths.length - 1);
       double ix = (slotW - totalIconW) / 2;
 
       for (int i = 0; i < iconPaths.length; i++) {
@@ -380,7 +376,11 @@ class InventoryScreen extends FlameGame {
         slotSize: Vector2(slotW, slotH),
         gameRef: this,
         plantIndex: index,
-        onTap: (int i) => _onPlantSelected(i),
+        onTap: (int i) {
+          // Solo seleccionar si no se estaba arrastrando
+          if (_isDragging) return;
+          _onPlantSelected(i);
+        },
       )..size = Vector2(slotW, slotH));
     } else {
       slot.add(TextComponent(
@@ -406,19 +406,19 @@ class InventoryScreen extends FlameGame {
     setState(() {
       _selectedPlantIndex = index;
     });
-
     _controller?.setActivePlant(index);
     _loadPlantSlots();
-
     debugPrint('[Inventory] Planta seleccionada: $index');
   }
 
   void setState(VoidCallback fn) {
     fn();
-
-    // Limpiar el panel y el botón antiguos para evitar duplicados.
-    children.whereType<FilterPanelComponent>().forEach((component) => component.removeFromParent());
-    children.whereType<CloseButtonComponent>().forEach((component) => component.removeFromParent());
+    children
+        .whereType<FilterPanelComponent>()
+        .forEach((c) => c.removeFromParent());
+    children
+        .whereType<CloseButtonComponent>()
+        .forEach((c) => c.removeFromParent());
 
     add(FilterPanelComponent(gameRef: this));
 
@@ -463,7 +463,7 @@ class InventoryScreen extends FlameGame {
         ..sprite = Sprite(
           img,
           srcPosition: Vector2(0, 0),
-          srcSize: Vector2(img.width / 18, img.height.toDouble()), // DIVIDIR EN LA CANTIDAD DE FRAMES DEL SPRITESHEET
+          srcSize: Vector2(img.width / 18, img.height.toDouble()),
         )
         ..size = Vector2(plantSize, plantSize)
         ..anchor = Anchor.center
@@ -485,8 +485,8 @@ class InventoryScreen extends FlameGame {
         return iconH * ratio;
       }).toList();
 
-      final double totalIconW =
-          iconWidths.fold(0.0, (sum, w) => sum + w) + iconGap * (iconPaths.length - 1);
+      final double totalIconW = iconWidths.fold(0.0, (sum, w) => sum + w) +
+          iconGap * (iconPaths.length - 1);
       double ix = (slotW - totalIconW) / 2;
 
       for (int i = 0; i < iconPaths.length; i++) {
@@ -508,6 +508,38 @@ class InventoryScreen extends FlameGame {
 
     add(slot);
   }
+
+  // ── Scroll vertical ───────────────────────────────────
+  @override
+  void onDragUpdate(DragUpdateEvent event) {
+    final dy = event.localDelta.y;
+
+    // Marcar como dragging si el movimiento es suficiente
+    if (dy.abs() > 12) {
+      _isDragging = true;
+    }
+
+    // Scroll: arrastrar hacia arriba = ver más plantas abajo
+    _scrollOffsetY -= dy;
+    _scrollOffsetY = _scrollOffsetY.clamp(0.0, _maxScrollY);
+
+    // Mover cada slot según el scroll
+    for (int i = 0; i < _plantSlots.length; i++) {
+      final int row = i ~/ _columns;
+      final int col = i % _columns;
+      _plantSlots[i].position.x = _colToX(col);
+      _plantSlots[i].position.y = _rowToBaseY(row) - _scrollOffsetY;
+    }
+  }
+
+@override
+void onDragEnd(DragEndEvent event) {
+  super.onDragEnd(event);
+  Future.delayed(const Duration(milliseconds: 150), () {
+    _isDragging = false;
+    _dragDistance = 0; // resetear distancia acumulada
+  });
+}
 }
 
 // -------------------------------------------------------
@@ -560,7 +592,7 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
     ));
 
     const double collapsedH = 52.0;
-    const double marginTop = 15.0;
+    const double marginTop = 40.0;//15
     const double marginSide = 30.0;
     const double btnH = 44.0;
     const double btnGap = 10.0;
