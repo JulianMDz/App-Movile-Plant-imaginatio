@@ -1,6 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flame/game.dart';
 
 enum PlantStage { seed, bush, tree, ent }
 
@@ -77,6 +78,42 @@ current = stageEnum;
 
   String get folderName {
     if (plantType.isEmpty) return 'Pasto';
+    
+    // Mapear IDs de planta a nombres de carpetas
+    final lowerId = plantType.toLowerCase();
+    
+    // HIDRO
+    if (lowerId.contains('aliso')) return 'Aliso';
+    if (lowerId.contains('cedrillo')) return 'Cedrillo';
+    if (lowerId.contains('cucharo')) return 'Cucharo';
+    
+    // SOLAR
+    if (lowerId.contains('alcaparro grande')) return 'Alcaparro grande';
+    if (lowerId.contains('alcaparro')) return 'Alcaparro';
+    if (lowerId.contains('cajeto')) return 'Cajeto';
+    if (lowerId.contains('espino')) return 'Espino';
+    if (lowerId.contains('drago')) return 'Drago';
+    
+    // XEROFITO
+    if (lowerId.contains('alcaparro enano')) return 'Alcaparro enano';
+    if (lowerId.contains('dividivi')) return 'Dividivi';
+    
+    // MONTAÑA
+    if (lowerId.contains('pino')) return 'Pino romerón';
+    if (lowerId.contains('roble')) return 'Roble';
+    if (lowerId.contains('nogal')) return 'Nogal';
+    if (lowerId.contains('duraznillo')) return 'Duraznillo';
+    
+    // TEMPLADO
+    if (lowerId.contains('manzano')) return 'Manzano';
+    if (lowerId.contains('mangle')) return 'Mangle';
+    if (lowerId.contains('sietecueros')) return 'Sietecueros';
+    if (lowerId.contains('cedro')) return 'Cedro';
+    
+    // PASTO (default)
+    if (lowerId.contains('pasto')) return 'Pasto';
+    
+    // Si no hay match, usar el ID tal cual
     return plantType;
   }
 
@@ -99,7 +136,7 @@ current = stageEnum;
 
   Future<SpriteAnimation> _loadAnim(String file, int frames,) async {
     try {
-      return await SpriteAnimation.load(
+      final anim = await SpriteAnimation.load(
         'Planta/$file',
         SpriteAnimationData.sequenced(
           amount: frames,
@@ -107,12 +144,31 @@ current = stageEnum;
           textureSize: Vector2(500, 500),
         ),
       );
+      debugPrint('[PlantComponent] ✅ Cargado: $file');
+      return anim;
     } catch (e) {
       // Si falla, intentar cargar Pasto como fallback
       debugPrint('[PlantComponent] Error cargando $file, usando Pasto como fallback');
+      
+      // Determinar qué fase usar según el stage
+      String fallbackFile;
+      switch (file) {
+        case _ when file.contains('fase1'):
+          fallbackFile = 'Planta/Pasto/fase1_ss.png';
+          break;
+        case _ when file.contains('fase3'):
+          fallbackFile = 'Planta/Pasto/fase3_ss.png';
+          break;
+        case _ when file.contains('fase4'):
+          fallbackFile = 'Planta/Pasto/fase4_ss.png';
+          break;
+        default:
+          fallbackFile = 'Planta/Pasto/fase2_ss.png';
+      }
+      
       try {
         return await SpriteAnimation.load(
-          'Planta/Pasto/fase2_ss.png',
+          fallbackFile,
           SpriteAnimationData.sequenced(
             amount: frames,
             stepTime: 0.1,
@@ -120,9 +176,16 @@ current = stageEnum;
           ),
         );
       } catch (e2) {
-        // Si Pasto también falla, crear una animación vacía
-        debugPrint('[PlantComponent] Error crítico: ni $file ni Pasto funcionan');
-        rethrow;
+        debugPrint('[PlantComponent] Error crítico: Fallback de Pasto falló');
+        // Crear una animación vacía como último recurso
+        return SpriteAnimation.fromFrameData(
+          await Flame.images.load('Planta/Pasto/fase2_ss.png'),
+          SpriteAnimationData.sequenced(
+            amount: 1,
+            stepTime: 1.0,
+            textureSize: Vector2(500, 500),
+          ),
+        );
       }
     }
   }

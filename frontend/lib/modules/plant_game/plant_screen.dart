@@ -233,7 +233,7 @@ class PlantGameScreen extends FlameGame {
     _plant = PlantComponent(
       pType,
       pStage,
-      Vector2(size.x / 2, size.y /2),
+      Vector2(size.x / 2, size.y / 2),
     )
     ..anchor = Anchor.center;
     add(_plant);
@@ -301,18 +301,20 @@ class PlantGameScreen extends FlameGame {
       // Aplicar estrictamente la escala original de la fase (sin modificar)
       _plant.scale = _plant.stageScale; 
       
-      // Posicionar en el 78% de la pantalla (suelo) + el offset visual de la fase escalado
+// Posicionar en el 78% de la pantalla (suelo) + el offset visual de la fase escalado
       _plant.position = Vector2(
         size.x / 2, 
-        (size.y * 0.78) + (_plant.stageOffset.y * scaleFactor),
+        size.y / 2 + (_plant.stageOffset.y * scaleFactor),
       );
       
-      _columnRight.position = Vector2(size.x - 8, size.y / 2);
+      _columnRight.position = Vector2(size.x - 8, size.y * 0.48);
       _rowDown.position = Vector2(size.x / 2, size.y - 10);
   }
 
   void _onControllerAnimationChange() {
-    final controller = Provider.of<PlantController>(context, listen: false);
+    try {
+      if (context == null) return;
+      final controller = Provider.of<PlantController>(context, listen: false);
     final plantType = controller.activePlant?.id ?? 'pasto';
 
     if (controller.showEvolutionAnimation) {
@@ -359,6 +361,9 @@ class PlantGameScreen extends FlameGame {
         ..removeOnFinish = true;
       add(anim);
       controller.clearAnimationFlags();
+      }
+    } catch (e) {
+      // Silenciar errores de contexto - el widget se está disposeando
     }
   }
 }

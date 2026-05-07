@@ -115,7 +115,7 @@ class TreeRecursos {
         'agua': agua.toJson(),
         'sol': sol.toJson(),
         'composta': composta.toJson(),
-        'fertilizante': fertilizante.toJson(),
+        // fertilizante no se exporta al .tree (es interno de Flutter)
       };
 }
 
@@ -239,13 +239,14 @@ class TreeRecursosAplicados {
       TreeRecursosAplicados(
         agua: (json['agua'] as int?) ?? 1,
         sol: (json['sol'] as int?) ?? 1,
-        fertilizante: (json['fertilizante'] as int?) ?? 0,
+        // Compatibilidad: leer "composta" del .tree y convertir a "fertilizante"
+        fertilizante: (json['fertilizante'] as int?) ?? (json['composta'] as int?) ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
         'agua': agua,
         'sol': sol,
-        'fertilizante': fertilizante,
+        // fertilizante no se exporta al .tree (es interno de Flutter)
       };
 }
 
