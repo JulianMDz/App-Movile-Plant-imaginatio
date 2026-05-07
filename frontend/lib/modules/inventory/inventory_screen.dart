@@ -47,7 +47,7 @@ class InventoryScreen extends FlameGame {
       ..size = size);
 
     const double collapsedH = 56.0;
-    const double marginTop = 26.0;
+    const double marginTop = 42.0;
 
     final double availableH = size.y - collapsedH - marginTop;
     final double slotSize = availableH * 0.40;
@@ -66,7 +66,7 @@ class InventoryScreen extends FlameGame {
     add(FilterPanelComponent(gameRef: this));
 
     final closeBtn = CloseButtonComponent(context);
-    closeBtn.position = Vector2(size.x - 82, 10);
+    closeBtn.position = Vector2(size.x - 108, 32);
     closeBtn.size = Vector2(40, 40);
     closeBtn.priority = 20;
     add(closeBtn);
@@ -101,16 +101,16 @@ class InventoryScreen extends FlameGame {
       ));
 
       final img = images.fromCache('Planta/Pasto/fase2_ss.png');
-      final double plantSize = slotW * 0.5;
+      final double plantSize = slotW * 0.32;
       slot.add(SpriteComponent()
         ..sprite = Sprite(
           img,
           srcPosition: Vector2(0, 0),
-          srcSize: Vector2(img.width / 3, img.height.toDouble()), // DIVIDIR EN LA CANTIDAD DE FRAMES DEL SPRITESHEET
+          srcSize: Vector2(img.width / 18, img.height.toDouble()), // DIVIDIR EN LA CANTIDAD DE FRAMES DEL SPRITESHEET
         )
         ..size = Vector2(plantSize, plantSize)
         ..anchor = Anchor.center
-        ..position = Vector2(slotW / 2, slotH * 0.16));
+        ..position = Vector2(slotW / 2, slotH * 0.50));
 
       final double iconH = slotH * 0.16;
       final double iconY = slotH - iconH - slotH * 0.13;
@@ -152,8 +152,6 @@ class InventoryScreen extends FlameGame {
     add(slot);
   }
 }
-
-
 
 // -------------------------------------------------------
 // Slot tappable
@@ -220,7 +218,7 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
     add(TextComponent(
       text: 'PASTO',
       anchor: Anchor.topCenter,
-      position: Vector2(gameRef.size.x / 2, panelY + panelSize * 0.14),
+      position: Vector2(gameRef.size.x / 2, panelY + panelSize * 0.16),
       textRenderer: TextPaint(
         style: const TextStyle(
           fontSize: 18,
@@ -232,7 +230,7 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
     ));
 
     final img = gameRef.images.fromCache('Planta/Pasto/fase2_ss.png');
-    final double plantSize = panelSize * 0.8; 
+    final double plantSize = panelSize * 0.32; 
     add(SpriteComponent()
       ..sprite = Sprite(
         img,
@@ -241,7 +239,7 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
       )
       ..size = Vector2(plantSize, plantSize)
       ..anchor = Anchor.center
-      ..position = Vector2(gameRef.size.x / 2, panelY + panelSize * 0.15));
+      ..position = Vector2(gameRef.size.x / 2, panelY + panelSize * 0.50));
 
     final double iconH = panelSize * 0.15;
     final double iconY = panelY + panelSize - iconH - panelSize * 0.13;

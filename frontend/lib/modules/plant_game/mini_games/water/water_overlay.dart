@@ -9,6 +9,7 @@ import 'package:frontend/modules/plant_game/mini_games/water/components/text_wat
 import 'package:frontend/modules/plant_game/mini_games/water/components/water.dart';
 import 'package:frontend/modules/plant_game/mini_games/water/water_logic.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
+import 'package:frontend/core/audio.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WaterOverlay — Flame overlay del minijuego del Agua
@@ -58,6 +59,7 @@ class WaterOverlay extends FlameGame {
   // ── Input ──────────────────────────────────────────────────────────────────
 
   void _onWaterTapped() {
+    AudioManager.regar(); 
     logic.onTap();
     textComponents.updateClicks(logic.clickCount);
   }

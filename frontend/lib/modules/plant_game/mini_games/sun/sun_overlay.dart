@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:frontend/modules/plant_game/mini_games/sun/components/panel_sun.dart';
 import 'package:frontend/modules/plant_game/mini_games/sun/sun_logic.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
+import 'package:frontend/core/audio.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SunOverlay — Flame overlay del minijuego del Sol
@@ -66,6 +67,7 @@ class SunOverlay extends FlameGame with TapCallbacks {
   void onTapDown(TapDownEvent event) {
     if (_logic.isGameOver) return;
 
+    AudioManager.sol();
     final newTier = _logic.onTap();
 
     // Actualizar sprite del panel al Tier resultante

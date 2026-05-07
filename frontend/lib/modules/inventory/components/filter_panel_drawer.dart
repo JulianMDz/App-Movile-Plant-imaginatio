@@ -8,13 +8,12 @@ import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
-// -------------------------------------------------------
-// Drawer
-// -------------------------------------------------------
 class FilterDrawer extends PositionComponent with TapCallbacks {
   late final FlameGame gameRef;
   bool isVisible = false;
   double drawerH = 0;
+  // Mismo margen que el panel
+  static const double _marginSide = 58.0;
 
   FilterDrawer({required this.gameRef});
 
@@ -33,10 +32,11 @@ class FilterDrawer extends PositionComponent with TapCallbacks {
     final double h = drawerH;
     const double collapsedH = 56.0;
 
+    // Fondo del drawer con margen lateral — igual que el panel colapsado
     add(SpriteComponent()
       ..sprite = Sprite(gameRef.images.fromCache('Paneles/Panel_DescripciónPlanta_05.png'))
-      ..size = Vector2(screenW, h + collapsedH)
-      ..position = Vector2.zero());
+      ..size = Vector2(screenW - _marginSide * 2, h + collapsedH)
+      ..position = Vector2(_marginSide, 0)); // desplazado por el margen
 
     final double marginSide = screenW * 0.22;
     const double topReserved = 62.0;
