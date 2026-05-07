@@ -280,6 +280,7 @@ class PlantController extends ChangeNotifier {
       Duration(minutes: intervals * _decayIntervalMin),
     );
     await _authStorage.savePlantLastInteraction(plant.instanceId, newInteraction);
+    await saveTree(); // Persistir cambios del decay
 
     debugPrint('[PlantController] ⏳ Decay aplicado solo a planta activa: ${plant.id}');
   }
@@ -359,8 +360,12 @@ class PlantController extends ChangeNotifier {
     if (_currentTree == null || _currentTree!.plantas.isEmpty) return null;
     final plants = _currentTree!.plantas.where((p) => p.desbloqueada && p.estado.fase != 'muerto').toList();
     if (plants.isEmpty) return null;
-    final index = _activePlantIndex.clamp(0, plants.length - 1);
-    return plants[index];
+    // Validar que el índice sea válido para la lista filtrada
+    if (_activePlantIndex < 0 || _activePlantIndex >= plants.length) {
+      // Si el índice no es válido, usar la primera planta disponible
+      _activePlantIndex = 0;
+    }
+    return plants[_activePlantIndex];
   }
 
   /// Retorna la planta por índice directo (para inventario).
@@ -425,6 +430,7 @@ class PlantController extends ChangeNotifier {
     final plant = activePlant;
     if (plant != null) {
       plant.recursosAplicados.agua += amount;
+      _checkEvolution(plant);
       saveTree(); // Persistir cambios
     }
     notifyListeners();
@@ -506,7 +512,23 @@ class PlantController extends ChangeNotifier {
     if (plant == null) return null;
     
     final currentFase = plant.estado.fase;
-    final plantType = plant.id;
+    
+    // Si la planta está en fase ENT, usar los valores de fase "planta" (la máxima)
+    if (currentFase == 'ent') {
+      final plantType = _getPlantType(plant.id);
+      final requirements = _evolutionRequirements[plantType];
+      if (requirements == null) return null;
+      final faseReqs = requirements['planta'];
+      if (faseReqs == null) return null;
+      return {
+        'sol': faseReqs['sun'] ?? 10,
+        'agua': faseReqs['water'] ?? 10,
+        'fertilizante': _fertilizerRequirements['planta'] ?? 10,
+      };
+    }
+    
+    // Usar _getPlantType para obtener la key correcta (solar, hidro, etc.)
+    final plantType = _getPlantType(plant.id);
     final requirements = _evolutionRequirements[plantType];
     if (requirements == null) return null;
     
@@ -782,6 +804,7 @@ class PlantController extends ChangeNotifier {
         sol: TreeRecurso(cantidad: user.resources.sunAmount),
         agua: TreeRecurso(cantidad: user.resources.waterAmount),
         composta: TreeRecurso(cantidad: user.resources.compostAmount),
+        fertilizante: TreeRecurso(cantidad: user.resources.fertilizerAmount),
       ),
       plantas: plantas,
     );
@@ -801,7 +824,7 @@ class PlantController extends ChangeNotifier {
         sun: p.recursosAplicados.sol.toDouble(),
         water: p.recursosAplicados.agua.toDouble(),
         fertilizer: 0,
-        isDead: p.estado.salud == 'muerto',
+        isDead: p.estado.fase == 'muerto',
         lastInteraction: DateTime.now().toUtc(),
         sourcesNextState: SourcesNextState(sun: 0, water: 0, fertilizer: 0),
       );

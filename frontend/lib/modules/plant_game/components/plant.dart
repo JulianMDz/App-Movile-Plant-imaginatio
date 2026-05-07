@@ -48,6 +48,11 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
       debugPrint('[PlantComponent] ✅ Planta actualizada a: $newPlantType');
     } catch (e, stack) {
       debugPrint('[PlantComponent] ❌ Error al actualizar planta: $e');
+      // Fallback: mantener animación anterior o asignar animación vacía
+      final stageEnum = _intToStage(newStage);
+      if (animations?[stageEnum] == null) {
+        animations = {stageEnum: SpriteAnimation(<SpriteAnimationFrame>[], loop: true)};
+      }
     }
   }
 
