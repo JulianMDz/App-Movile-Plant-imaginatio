@@ -244,6 +244,9 @@ class PlantController extends ChangeNotifier {
     final plant = activePlant;
     if (plant == null) return;
 
+    // Si la planta está en fase ENT, no aplicar decay (ya está madura)
+    if (plant.estado.fase == 'ent') return;
+
     final now = DateTime.now().toUtc();
     final lastInteraction = await _authStorage.getPlantLastInteraction(plant.instanceId);
 
@@ -377,6 +380,18 @@ class PlantController extends ChangeNotifier {
     final targetPlant = plants[index];
     final realIndex = _currentTree!.plantas.indexOf(targetPlant);
     _activePlantIndex = realIndex;
+
+    // Si la planta está en fase ENT, poner recursos al máximo de la fase planta
+    if (targetPlant.estado.fase == 'ent') {
+      final plantType = _getPlantType(targetPlant.id);
+      final requirements = _evolutionRequirements[plantType];
+      final plantaMax = requirements?['planta'] ?? {'sun': 10, 'water': 8};
+
+      targetPlant.recursosAplicados.sol = plantaMax['sun'] ?? 10;
+      targetPlant.recursosAplicados.agua = plantaMax['water'] ?? 8;
+      targetPlant.recursosAplicados.fertilizante = 8;
+    }
+
     debugPrint('[PlantController] Planta activa establecida: índice $realIndex');
     notifyListeners();
   }
