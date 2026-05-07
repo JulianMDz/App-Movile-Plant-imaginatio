@@ -17,7 +17,6 @@ import 'package:frontend/modules/plant_game/components/Button_game_3d.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_compost.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_sun.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_water.dart';
-import 'package:frontend/modules/plant_game/components/Button_logout.dart';
 import 'package:frontend/modules/plant_game/components/Button_profile.dart';
 import 'package:frontend/modules/plant_game/components/Text_name.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_compost.dart';
@@ -98,8 +97,7 @@ class PlantGameScreen extends FlameGame {
       },
     );
     final creditButton = Button_credit(onPressed: () { });
-    final profileButton = Button_profile(onPressed: () { });
-    final logoutButton = Button_logout(onPressed: () { });
+    final profileButton = Button_profile(onPressed: () {AudioManager.click();});
     final buttonAudio = Button_audio(onPressed: () {
       AudioManager.toggleMute();
     });
@@ -177,10 +175,6 @@ class PlantGameScreen extends FlameGame {
         PaddingComponent(
           padding: EdgeInsets.only(right: 10),
           child: inventaryButton,
-        ),
-        PaddingComponent(
-          padding: EdgeInsets.only(right: 10),
-          child: logoutButton,
         ),
         buttonAudio,
       ],
