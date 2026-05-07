@@ -1,8 +1,8 @@
 import 'package:flame/components.dart';
 import 'package:flame/input.dart';
 
-class Button_game_3d extends SpriteButtonComponent {
-  Button_game_3d({
+class Button_audio extends SpriteButtonComponent {
+  Button_audio({
     required void Function() onPressed,
   }) : super(
           size: Vector2.zero(),
@@ -14,8 +14,8 @@ class Button_game_3d extends SpriteButtonComponent {
   @override
   Future<void> onLoad() async {
     // Cargar sprites aquí
-    button = await Sprite.load('Botones/Boton_3DCombate_01.png');
-    buttonDown = await Sprite.load('Botones/Boton_3DCombate_01.png');
+    button = await Sprite.load('Botones/Boton_Audio_01.png');
+    buttonDown = await Sprite.load('Botones/Boton_Audio_01.png');
 
     size = button.srcSize/2.5;   
   }

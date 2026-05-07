@@ -11,10 +11,14 @@ import 'package:frontend/modules/plant_game/components/Animation_sun.dart';
 import 'package:frontend/modules/plant_game/components/Animation_tombstone.dart';
 import 'package:frontend/modules/plant_game/components/Animation_water.dart';
 import 'package:frontend/modules/plant_game/components/Button_Inventary.dart';
+import 'package:frontend/modules/plant_game/components/Button_audio.dart';
+import 'package:frontend/modules/plant_game/components/Button_credit.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_3d.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_compost.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_sun.dart';
 import 'package:frontend/modules/plant_game/components/Button_game_water.dart';
+import 'package:frontend/modules/plant_game/components/Button_logout.dart';
+import 'package:frontend/modules/plant_game/components/Button_profile.dart';
 import 'package:frontend/modules/plant_game/components/Text_name.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_compost.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_sun.dart';
@@ -82,6 +86,13 @@ class PlantGameScreen extends FlameGame {
         GoRouter.of(context).go('/inventory');
       },
     );
+    final creditButton = Button_credit(onPressed: () { });
+    final profileButton = Button_profile(onPressed: () { });
+    final logoutButton = Button_logout(onPressed: () { });
+    final buttonAudio = Button_audio(onPressed: () {
+      AudioManager.toggleMute();
+    });
+
 
     final panelInfo = Panel_resource_info();
 
@@ -131,6 +142,11 @@ class PlantGameScreen extends FlameGame {
 
     _rowTop = RowComponent(
       children: [
+        
+        PaddingComponent(
+          padding: EdgeInsets.only(right: 10),
+          child: creditButton,
+        ),
         PaddingComponent(
           padding: EdgeInsets.only(right: 10),
           child: panelTitle,
@@ -147,6 +163,15 @@ class PlantGameScreen extends FlameGame {
           padding: EdgeInsets.only(right: 10),
           child: inventaryButton,
         ),
+        PaddingComponent(
+          padding: EdgeInsets.only(right: 10),
+          child: inventaryButton,
+        ),
+        PaddingComponent(
+          padding: EdgeInsets.only(right: 10),
+          child: logoutButton,
+        ),
+        buttonAudio,
       ],
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -225,6 +250,10 @@ class PlantGameScreen extends FlameGame {
 
     _rowDown = RowComponent(
       children: [
+        PaddingComponent(
+          padding: EdgeInsets.only(right: 10),
+          child: profileButton,
+        ),
         PaddingComponent(
           padding: EdgeInsets.only(right: 400),
           child: name,
