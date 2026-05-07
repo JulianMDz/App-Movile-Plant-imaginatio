@@ -9,6 +9,7 @@ import 'package:frontend/modules/plant_game/mini_games/compost/components/panel_
 import 'package:frontend/modules/plant_game/mini_games/compost/components/text_compost.dart';
 import 'package:frontend/modules/plant_game/mini_games/compost/compost_logic.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
+import 'package:frontend/core/audio.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CompostOverlay — Flame overlay del minijuego de Composta
@@ -58,6 +59,7 @@ class CompostOverlay extends FlameGame {
   // ── Input ──────────────────────────────────────────────────────────────────
 
   void _onCompostTapped(int row, int col, bool isCorrect) {
+    AudioManager.abono();
     logic.onCellTap(row, col, isCorrect);
   }
 
