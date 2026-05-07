@@ -101,12 +101,16 @@ class PanelLayout extends PositionComponent {
       final ctrl    = Provider.of<PlantController>(context, listen: false);
       final applied = ctrl.activePlantResources;
 
-      _barraSol.progress =
-          (applied.sol / _maxRecurso).clamp(0.0, 1.0);
-      _barraAgua.progress =
-          (applied.agua / _maxRecurso).clamp(0.0, 1.0);
-      _barraComposta.progress =
-          (applied.fertilizante / _maxRecurso).clamp(0.0, 1.0);
+      // Obtener máximos según tipo y fase de la planta activa
+      final maxReqs = ctrl.getCurrentPhaseRequirements();
+      final maxSol = (maxReqs?['sol'] ?? 10).toDouble();
+      final maxAgua = (maxReqs?['agua'] ?? 10).toDouble();
+      final maxFert = (maxReqs?['fertilizante'] ?? 10).toDouble();
+
+      // Calcular % de llenado (barra siempre tiene tamaño fijo de _barW)
+      _barraSol.progress = (applied.sol / maxSol).clamp(0.0, 1.0);
+      _barraAgua.progress = (applied.agua / maxAgua).clamp(0.0, 1.0);
+      _barraComposta.progress = (applied.fertilizante / maxFert).clamp(0.0, 1.0);
     } catch (_) {}
   }
 }

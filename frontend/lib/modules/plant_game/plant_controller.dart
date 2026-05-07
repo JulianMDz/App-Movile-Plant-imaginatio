@@ -466,6 +466,28 @@ class PlantController extends ChangeNotifier {
     };
   }
 
+  /// Retorna los recursos máximos que la planta puede consumir en su fase actual.
+  /// Usado para calcular el % de llenado en las barras del panel de recursos.
+  /// Por ejemplo: solar en fase "semilla" → {sol: 6, agua: 2, fertilizante: 4}
+  Map<String, int>? getCurrentPhaseRequirements() {
+    final plant = activePlant;
+    if (plant == null) return null;
+    
+    final currentFase = plant.estado.fase;
+    final plantType = plant.id;
+    final requirements = _evolutionRequirements[plantType];
+    if (requirements == null) return null;
+    
+    final faseReqs = requirements[currentFase];
+    if (faseReqs == null) return null;
+    
+    return {
+      'sol': faseReqs['sun'] ?? 10,
+      'agua': faseReqs['water'] ?? 10,
+      'fertilizante': _fertilizerRequirements[currentFase] ?? 10,
+    };
+  }
+
   /// Verifica si la planta activa puede evolucionar a la siguiente etapa
   bool canEvolve() {
     final plant = activePlant;

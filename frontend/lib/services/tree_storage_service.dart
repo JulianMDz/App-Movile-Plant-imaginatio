@@ -204,12 +204,14 @@ class TreeStorageService {
   }
 
   /// Para cada planta existente (Flutter), busca la versión de Unity y aplica
-  /// solo los campos 🔴. Usado en [applyUnitySync].
+  /// solo los campos 🔴. También agrega nuevas plantas de Unity que no existen en Flutter.
+  /// Usado en [applyUnitySync].
   List<TreePlanta> _mergeUnityIntoPlantas({
     required List<TreePlanta> flutterPlantas,
     required List<TreePlanta> unityPlantas,
   }) {
-    return flutterPlantas.map((fp) {
+    // 1. Mantener plantas existentes de Flutter (actualizadas por Unity)
+    final mergedPlantas = flutterPlantas.map((fp) {
       final unityMatch = _findMatch(fp, unityPlantas);
       if (unityMatch == null) return fp; // Unity no tiene datos de esta planta
 
@@ -229,6 +231,31 @@ class TreeStorageService {
         recursosAplicados: fp.recursosAplicados, // 🟢 preservado
       );
     }).toList();
+
+    // 2. Agregar plantas nuevas de Unity que no existen en Flutter
+    final existingInstanceIds = flutterPlantas.map((p) => p.instanceId).toSet();
+    final existingIds = flutterPlantas.map((p) => p.id).toSet();
+    
+    final newPlantsFromUnity = <TreePlanta>[];
+    
+    for (final up in unityPlantas) {
+      // Agregar si es una nueva planta (instance_id no existe en Flutter)
+      if (!existingInstanceIds.contains(up.instanceId)) {
+        newPlantsFromUnity.add(TreePlanta(
+          id: up.id,
+          instanceId: up.instanceId,
+          subid: up.subid,
+          desbloqueada: true,
+          estado: TreeEstado(fase: 'semilla'), // 🟢 default
+          progreso: up.progreso,
+          visualEstado: TreeVisualEstado(),
+          uso: up.uso,
+          recursosAplicados: TreeRecursosAplicados(sol: 1, agua: 1, fertilizante: 0), // 🟢 default
+        ));
+      }
+    }
+
+    return [...mergedPlantas, ...newPlantsFromUnity];
   }
 
   /// Busca la contraparte de [target] en [candidates].
