@@ -56,13 +56,13 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   Vector2 get stageOffset {
     switch (_activeStage) {
       case PlantStage.seed:
-        return Vector2(0, -80);
+        return Vector2(size.x / 2, size.y / 2+120);
       case PlantStage.bush:
-        return Vector2(0, -50);
+        return Vector2(size.x / 2, size.y / 2+60);
       case PlantStage.tree:
-        return Vector2(0, 20);
+        return Vector2(size.x / 2, size.y / 2+60);
       case PlantStage.ent:
-        return Vector2(0, 50);
+        return Vector2(size.x / 2, size.y / 2+60);
       default:
         return Vector2.zero();
     }
@@ -73,13 +73,11 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
       case PlantStage.seed:
         return Vector2.all(0.3);
       case PlantStage.bush:
-        return Vector2.all(1.5);
+        return Vector2.all(0.5);
       case PlantStage.tree:
-        return Vector2.all(1.0);
+        return Vector2.all(0.6);
       case PlantStage.ent:
         return Vector2.all(0.7);
-      default:
-        return Vector2.all(1.0);
     }
   }
 
