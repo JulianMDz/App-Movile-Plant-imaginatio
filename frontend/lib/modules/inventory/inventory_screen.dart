@@ -308,7 +308,7 @@ class InventoryScreen extends FlameGame {
 
       try {
         final img = images.fromCache(imagePath);
-        final double plantSize = slotW * 0.99;
+        final double plantSize = slotW * 0.4;
         slot.add(SpriteComponent()
           ..sprite = Sprite(
             img,
@@ -318,12 +318,12 @@ class InventoryScreen extends FlameGame {
           ..size = Vector2(plantSize, plantSize)
           ..anchor = Anchor.center
           // Posición restaurada al layout de referencia (imagen 4)
-          ..position = Vector2(slotW / 2, slotH * 0.16));
+          ..position = Vector2(slotW / 2, slotH /2));
       } catch (e) {
         debugPrint('[Inventory] Error cargando imagen: $imagePath - usando Pasto fallback');
         // Mostrar Pasto como fallback visual
         final fallbackImg = images.fromCache('Planta/Pasto/fase2_ss.png');
-        final double plantSize = slotW * 0.99;
+        final double plantSize = slotW * 0.4;
         slot.add(SpriteComponent()
           ..sprite = Sprite(
             fallbackImg,
@@ -532,6 +532,7 @@ class _TappableSlot extends PositionComponent with TapCallbacks {
     _expanded = true;
     gameRef.add(_ExpandedOverlay(
       gameRef: gameRef,
+      plant: (gameRef as InventoryScreen)._controller!.plants[plantIndex!],
       onClose: () => _expanded = false,
     )..size = gameRef.size);
     event.continuePropagation = false;
@@ -544,8 +545,9 @@ class _TappableSlot extends PositionComponent with TapCallbacks {
 class _ExpandedOverlay extends PositionComponent with TapCallbacks {
   final FlameGame gameRef;
   final VoidCallback onClose;
+  final dynamic plant;
 
-  _ExpandedOverlay({required this.gameRef, required this.onClose});
+  _ExpandedOverlay({required this.gameRef, required this.onClose, required this.plant});
 
   @override
   Future<void> onLoad() async {
@@ -576,8 +578,11 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
       ..size = Vector2(panelSize, panelSize)
       ..position = Vector2(panelX, panelY));
 
+    final lowerId = plant.id ?? 'pasto';
+    final displayName = (gameRef as InventoryScreen)._getPlantDisplayName(lowerId);
+
     add(TextComponent(
-      text: 'PASTO',
+      text: displayName,
       anchor: Anchor.topCenter,
       position: Vector2(gameRef.size.x / 2, panelY + panelSize * 0.16),
       textRenderer: TextPaint(
