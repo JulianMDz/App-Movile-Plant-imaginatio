@@ -5,11 +5,9 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
-
 // -------------------------------------------------------
 // Botón con imagen
 // -------------------------------------------------------
-
 class ImageButton extends PositionComponent with TapCallbacks {
   final String label;
   final VoidCallback onTap;
@@ -54,4 +52,3 @@ class ImageButton extends PositionComponent with TapCallbacks {
     event.continuePropagation = false;
   }
 }
-

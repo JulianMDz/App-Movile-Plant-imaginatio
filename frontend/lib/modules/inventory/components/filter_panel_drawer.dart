@@ -8,8 +8,11 @@ import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
+// -------------------------------------------------------
+// Drawer
+// -------------------------------------------------------
 class FilterDrawer extends PositionComponent with TapCallbacks {
-  final FlameGame gameRef;
+  late final FlameGame gameRef;
   bool isVisible = false;
   double drawerH = 0;
 
@@ -35,11 +38,8 @@ class FilterDrawer extends PositionComponent with TapCallbacks {
       ..size = Vector2(screenW, h + collapsedH)
       ..position = Vector2.zero());
 
-    // Margen lateral mayor para centrar el contenido
     final double marginSide = screenW * 0.22;
-
-    // Padding superior aumentado para separar del botón filtro
-    const double topReserved = 62.0; 
+    const double topReserved = 62.0;
     const double paddingV = 6.5;
     const double labelFontSize = 7.2;
     const double labelGap = 2.2;
@@ -52,7 +52,6 @@ class FilterDrawer extends PositionComponent with TapCallbacks {
 
     double currentY = topReserved;
 
-    // ── CATEGORÍA ──
     add(_sectionTitle('CATEGORÍA', screenW / 2, currentY));
     currentY += titleFontSize + titleGap;
     _addIconRow([
@@ -64,7 +63,6 @@ class FilterDrawer extends PositionComponent with TapCallbacks {
     ], screenW, marginSide, currentY, iconH, labelFontSize, labelGap);
     currentY += sectionH;
 
-    // ── ETAPA ──
     add(_sectionTitle('ETAPA', screenW / 2, currentY));
     currentY += titleFontSize + titleGap;
     _addIconRow([
@@ -75,7 +73,6 @@ class FilterDrawer extends PositionComponent with TapCallbacks {
     ], screenW, marginSide, currentY, iconH, labelFontSize, labelGap);
     currentY += sectionH;
 
-    // ── URGENCIA ──
     add(_sectionTitle('URGENCIA', screenW / 2, currentY));
     currentY += titleFontSize + titleGap;
     _addIconRow([

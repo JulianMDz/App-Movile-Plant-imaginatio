@@ -6,8 +6,12 @@ import 'dart:ui';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
+import 'package:frontend/core/audio.dart';
 import 'package:frontend/modules/inventory/components/filter_panel_drawer.dart';
 
+// -------------------------------------------------------
+// Panel de filtros
+// -------------------------------------------------------
 class FilterPanelComponent extends PositionComponent {
   final FlameGame gameRef;
   bool _isOpen = false;
@@ -46,6 +50,8 @@ class FilterPanelComponent extends PositionComponent {
   }
 
   void _toggleDrawer() {
+    // Click al abrir/cerrar el drawer
+    AudioManager.click();
     _isOpen = !_isOpen;
     _isOpen ? _openDrawer() : _closeDrawer();
   }
