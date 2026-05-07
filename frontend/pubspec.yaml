@@ -75,7 +75,57 @@ flutter:
     - assets/images/Inventario/
     - assets/images/Minijuegos/
     - assets/images/Paneles/
-    - assets/images/Planta/
+    # Plantas - paths explícitos para asegurar inclusión en APK
+    # Bases
+    - assets/images/Planta/Pasto/
+    - assets/images/Planta/Aliso/
+    - assets/images/Planta/Cajeto/
+    - assets/images/Planta/Espino/
+    - assets/images/Planta/Roble/
+    - assets/images/Planta/Manzano/
+    - assets/images/Planta/Alcaparro enano/
+    - assets/images/Planta/Cedrillo/
+    - assets/images/Planta/Mangle/
+    - assets/images/Planta/Drago/
+    - assets/images/Planta/Pino romerón/
+    - assets/images/Planta/Sietecueros/
+    - assets/images/Planta/Nogal/
+    - assets/images/Planta/Cedro/
+    - assets/images/Planta/Duraznillo/
+    # Variantes numeradas
+    - assets/images/Planta/Roble1/
+    - assets/images/Planta/Manzano1/
+    - assets/images/Planta/Manzano2/
+    - assets/images/Planta/Manzano3/
+    - assets/images/Planta/Manzano4/
+    - assets/images/Planta/Drago1/
+    - assets/images/Planta/Drago2/
+    - assets/images/Planta/Drago3/
+    - assets/images/Planta/Drago6/
+    - assets/images/Planta/Drago7/
+    - assets/images/Planta/Alcaparro enano1/
+    - assets/images/Planta/Alcaparro enano2/
+    - assets/images/Planta/Alcaparro enano3/
+    - assets/images/Planta/Alcaparro enano4/
+    - assets/images/Planta/Mangle2/
+    - assets/images/Planta/Cedrillo2/
+    - assets/images/Planta/Pino romerón1/
+    - assets/images/Planta/Pino romerón2/
+    - assets/images/Planta/Pino romerón3/
+    - assets/images/Planta/Duraznillo2/
+    # Sietecueros variantes
+    - assets/images/Planta/Sietecueros1/
+    - assets/images/Planta/Sietecueros2/
+    - assets/images/Planta/Sietecueros3/
+    - assets/images/Planta/Sietecueros4/
+    - assets/images/Planta/Sietecueros5/
+    - assets/images/Planta/Sietecueros6/
+    - assets/images/Planta/Sietecueros7/
+    - assets/images/Planta/Sietecueros8/
+    - assets/images/Planta/Sietecueros9/
+    - assets/images/Planta/Sietecueros10/
+    - assets/images/Planta/Sietecueros11/
+    - assets/images/Planta/Sietecueros12/
     - assets/audios/
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
