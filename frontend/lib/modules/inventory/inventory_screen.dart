@@ -2,10 +2,8 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:frontend/core/audio.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
 
 class InventoryScreen extends FlameGame {
@@ -17,44 +15,6 @@ class InventoryScreen extends FlameGame {
   PlantController? _controller;
   int _selectedPlantIndex = -1;
   List<PositionComponent> _plantSlots = [];
-
-  static const Map<String, String> _plantImageMap = {
-    'pasto': 'Planta/Pasto/fase2_ss.png',
-    'solar': 'Planta/Solar/fase2_ss.png',
-    'hidro': 'Planta/Hidro/fase2_ss.png',
-    'xerofito': 'Planta/Xerofito/fase2_ss.png',
-    'templado': 'Planta/Templado/fase2_ss.png',
-    'montana': 'Planta/Montana/fase2_ss.png',
-  };
-
-  static const Map<String, String> _plantNameMap = {
-    'pasto': 'PASTO',
-    'solar': 'SOLAR',
-    'hidro': 'HIDRO',
-    'xerofito': 'XEROFITO',
-    'templado': 'TEMPLADO',
-    'montana': 'MONTANA',
-  };
-
-  // Mapa de plantas a carpetas disponibles en assets
-  // El código busca la primera carpeta que coincida con el prefijo
-  static const List<String> _plantFolders = [
-    'Alcaparro enano',
-    'Cajeto',
-    'Espino',
-    'Drago',
-    'Cedro',
-    'Cedrillo',
-    'Sietecueros',
-    'Pino romerón',
-    'Duraznillo',
-    'Mangle',
-    'Manzano',
-    'Aliso',
-    'Dividivi',
-    'Nogal',
-    'Pasto',
-  ];
 
   // Mapa de tipos de planta a carpetas base en assets
   static const Map<String, List<String>> _plantTypeFolders = {
@@ -152,13 +112,17 @@ class InventoryScreen extends FlameGame {
   Future<void> onLoad() async {
     _selectedPlantIndex = initialSelectedIndex ?? -1;
 
-    // Cargar solo las imágenes básicas que sabemos que existen
+    // Capturamos context y controlador ANTES de cualquier await
+    final ctx = context;
+    _controller = Provider.of<PlantController>(ctx, listen: false);
+
+    // Cargar imágenes básicas que sabemos que existen
     await images.loadAll([
       'Paneles/Fondo_Inv_01.png',
       'Paneles/Panel_DescripciónPlanta_05.png',
       'Inventario/Panel_InvEspacio_01.png',
       'Inventario/Panel_InvEspacio_02.png',
-      // Cargar Pasto como fallback obligatorio
+      // Fallback obligatorio: todas las fases de Pasto
       'Planta/Pasto/fase1_ss.png',
       'Planta/Pasto/fase2_ss.png',
       'Planta/Pasto/fase3_ss.png',
@@ -176,19 +140,68 @@ class InventoryScreen extends FlameGame {
       'Iconos/Icono_Semaforo_01.png',
     ]);
 
+    // Pre-cargar imágenes de las plantas activas antes de construir slots
+    final plantsToLoad = _controller?.plants ?? [];
+    for (final plant in plantsToLoad) {
+      final plantId = plant.id;
+      final fase = plant.estado.fase;
+      final faseNum = _faseToNum(fase);
+      // Intentar las variantes conocidas de este plantId
+      final candidates = _buildImageCandidates(plantId, faseNum);
+      for (final path in candidates) {
+        try {
+          await images.load(path);
+          break; // detener al primer éxito
+        } catch (_) {}
+      }
+    }
+
     add(SpriteComponent()
       ..sprite = Sprite(images.fromCache('Paneles/Fondo_Inv_01.png'))
       ..size = size);
 
     add(FilterPanelComponent(gameRef: this));
 
-    final closeBtn = CloseButtonComponent(context);
+    // Capturamos context antes de usarlo (lo inicializamos arriba antes del primer await)
+    final closeBtn = CloseButtonComponent(ctx);
     closeBtn.position = Vector2(size.x - 82, 10);
     closeBtn.size = Vector2(40, 40);
     closeBtn.priority = 20;
     add(closeBtn);
 
     _loadPlantSlots();
+  }
+
+  /// Convierte nombre de fase a número de sprite sheet.
+  static String _faseToNum(String fase) {
+    switch (fase) {
+      case 'semilla': return '1';
+      case 'arbusto': return '2';
+      case 'planta':  return '3';
+      case 'ent':     return '4';
+      default:        return '2';
+    }
+  }
+
+  /// Construye la lista de rutas candidatas para una planta+fase.
+  /// Primero intenta la ruta exacta (plantId como carpeta), luego mapeos conocidos.
+  List<String> _buildImageCandidates(String plantId, String faseNum) {
+    final candidates = <String>[];
+    // Ruta directa (caso ideal: Unity exporta con el nombre de carpeta exacto)
+    candidates.add('Planta/$plantId/fase${faseNum}_ss.png');
+    // Buscar en mapas de tipo → carpetas
+    final lowerId = plantId.toLowerCase();
+    for (final folders in _plantTypeFolders.values) {
+      for (final folder in folders) {
+        if (lowerId.contains(folder.toLowerCase()) ||
+            folder.toLowerCase().contains(lowerId)) {
+          candidates.add('Planta/$folder/fase${faseNum}_ss.png');
+        }
+      }
+    }
+    // Fallback final: Pasto (siempre en cache)
+    candidates.add('Planta/Pasto/fase${faseNum}_ss.png');
+    return candidates;
   }
 
   void _loadPlantSlots() {
@@ -224,10 +237,6 @@ class InventoryScreen extends FlameGame {
     for (int i = 0; i < displayCount; i++) {
       final x = gap * (i + 1) + slotSize * i;
       _addPlantSlot(Vector2(x, finalSlotY), slotSize, slotSize, plants[i], i);
-    }
-
-    if (kDebugMode) {
-      _addDebugPanel();
     }
   }
 
@@ -294,9 +303,22 @@ class InventoryScreen extends FlameGame {
           )
           ..size = Vector2(plantSize, plantSize)
           ..anchor = Anchor.center
-          ..position = Vector2(slotW / 2, slotH * 0.55));
+          // Posición restaurada al layout de referencia (imagen 4)
+          ..position = Vector2(slotW / 2, slotH * 0.16));
       } catch (e) {
-        debugPrint('[Inventory] Error cargando imagen: $imagePath');
+        debugPrint('[Inventory] Error cargando imagen: $imagePath - usando Pasto fallback');
+        // Mostrar Pasto como fallback visual
+        final fallbackImg = images.fromCache('Planta/Pasto/fase2_ss.png');
+        final double plantSize = slotW * 0.99;
+        slot.add(SpriteComponent()
+          ..sprite = Sprite(
+            fallbackImg,
+            srcPosition: Vector2(0, 0),
+            srcSize: Vector2(fallbackImg.width / 18, fallbackImg.height.toDouble()),
+          )
+          ..size = Vector2(plantSize, plantSize)
+          ..anchor = Anchor.center
+          ..position = Vector2(slotW / 2, slotH * 0.16));
       }
 
       final double iconH = slotH * 0.16;
@@ -306,7 +328,6 @@ class InventoryScreen extends FlameGame {
       final recursos = plant.recursosAplicados;
       final sol = recursos?.sol ?? 0;
       final agua = recursos?.agua ?? 0;
-      final composta = recursos?.composta ?? 0;
 
       String estadoIcon = 'Botones/Boton_Estado_02.png';
       if (sol <= 0 || agua <= 0) {
@@ -376,15 +397,6 @@ class InventoryScreen extends FlameGame {
     _loadPlantSlots();
 
     debugPrint('[Inventory] Planta seleccionada: $index');
-  }
-
-  void _addDebugPanel() {
-    final debugPanel = _DebugTimePanel(
-      controller: _controller!,
-      position: Vector2(10, size.y - 150),
-      onUpdate: _loadPlantSlots,
-    );
-    add(debugPanel);
   }
 
   void setState(VoidCallback fn) {
@@ -943,133 +955,4 @@ class CloseButtonComponent extends SpriteComponent with TapCallbacks {
     event.continuePropagation = false;
   }
 }
-
-// -------------------------------------------------------
-// Panel Debug de Tiempo (solo en modo debug)
-// -------------------------------------------------------
-class _DebugTimePanel extends PositionComponent with TapCallbacks {
-  final PlantController controller;
-  final VoidCallback onUpdate;
-
-  _DebugTimePanel({
-    required this.controller,
-    required Vector2 position,
-    required this.onUpdate,
-  }) {
-    this.position = position;
-    size = Vector2(200, 130);
-  }
-
-  @override
-  Future<void> onLoad() async {
-    add(SpriteComponent()
-      ..sprite = await Sprite.load('Paneles/Panel_DescripciónPlanta_05.png')
-      ..size = size);
-
-    final title = TextComponent(
-      text: 'DEBUG TIME',
-      anchor: Anchor.topCenter,
-      position: Vector2(100, 5),
-      textRenderer: TextPaint(
-        style: const TextStyle(
-          fontSize: 8,
-          fontFamily: 'Press Start 2P',
-          color: Colors.red,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-    add(title);
-
-    final infoText = TextComponent(
-      text: _getDebugInfo(),
-      anchor: Anchor.topLeft,
-      position: Vector2(10, 30),
-      textRenderer: TextPaint(
-        style: const TextStyle(
-          fontSize: 7,
-          fontFamily: 'Press Start 2P',
-          color: Colors.white,
-        ),
-      ),
-    );
-    add(infoText);
-
-    final btnPlus10 = _DebugButton(
-      label: '+10m',
-      position: Vector2(10, 85),
-      onTap: () => _advanceTime(10),
-    );
-    add(btnPlus10);
-
-    final btnPlus60 = _DebugButton(
-      label: '+1h',
-      position: Vector2(70, 85),
-      onTap: () => _advanceTime(60),
-    );
-    add(btnPlus60);
-
-    final btnApply = _DebugButton(
-      label: 'APPLY',
-      position: Vector2(130, 85),
-      onTap: _applyDecay,
-    );
-    add(btnApply);
-  }
-
-  String _getDebugInfo() {
-    return controller.getDebugPlantsInfo();
-  }
-
-  void _advanceTime(int minutes) async {
-    await controller.debugAdvanceTime(minutes);
-    onUpdate();
-  }
-
-  void _applyDecay() async {
-    await controller.applyPassiveDecay();
-    await controller.saveTree();
-    debugPrint('[Debug] Decay aplicado');
-    onUpdate();
-  }
-}
-
-class _DebugButton extends PositionComponent with TapCallbacks {
-  final String label;
-  final VoidCallback onTap;
-
-  _DebugButton({
-    required this.label,
-    required Vector2 position,
-    required this.onTap,
-  }) {
-    this.position = position;
-    size = Vector2(50, 25);
-  }
-
-  @override
-  Future<void> onLoad() async {
-    add(SpriteComponent()
-      ..sprite = await Sprite.load('Botones/Boton_General_01a.png')
-      ..size = size);
-
-    add(TextComponent(
-      text: label,
-      anchor: Anchor.center,
-      position: Vector2(size.x / 2, size.y / 2),
-      textRenderer: TextPaint(
-        style: const TextStyle(
-          fontSize: 8,
-          fontFamily: 'Press Start 2P',
-          color: Colors.white,
-        ),
-      ),
-    ));
-  }
-
-  @override
-  void onTapDown(TapDownEvent event) {
-    onTap();
-    event.continuePropagation = false;
-  }
-}
+

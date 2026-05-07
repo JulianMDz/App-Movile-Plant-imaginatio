@@ -23,37 +23,45 @@ class PlantController extends ChangeNotifier {
   static const _uuid = Uuid();
 
   // ── Requisitos de evolución por tipo y etapa ─────────────────────────────────
-  static const Map<String, Map<String, int>> _evolutionRequirements = {
+  // Formato: {tipo: {fase: {sun: X, water: Y}}}
+  static const Map<String, Map<String, Map<String, int>>> _evolutionRequirements = {
     'solar': {
-      'semilla': 6,    // sol requerido para pasar de semilla a arbusto
-      'arbusto': 8,    // sol requerido para pasar de arbusto a árbol
-      'planta': 10,    // sol requerido para pasar de árbol a ent
+      'semilla': {'sun': 6, 'water': 2},
+      'arbusto': {'sun': 8, 'water': 4},
+      'planta': {'sun': 10, 'water': 6},
     },
     'xerofito': {
-      'semilla': 4,
-      'arbusto': 6,
-      'planta': 8,
+      'semilla': {'sun': 4, 'water': 2},
+      'arbusto': {'sun': 6, 'water': 4},
+      'planta': {'sun': 8, 'water': 6},
     },
     'templado': {
-      'semilla': 4,
-      'arbusto': 6,
-      'planta': 8,
+      'semilla': {'sun': 4, 'water': 4},
+      'arbusto': {'sun': 6, 'water': 6},
+      'planta': {'sun': 8, 'water': 8},
     },
     'montana': {
-      'semilla': 2,
-      'arbusto': 4,
-      'planta': 6,
+      'semilla': {'sun': 2, 'water': 4},
+      'arbusto': {'sun': 4, 'water': 6},
+      'planta': {'sun': 6, 'water': 8},
     },
     'hidro': {
-      'semilla': 2,
-      'arbusto': 4,
-      'planta': 6,
+      'semilla': {'sun': 2, 'water': 6},
+      'arbusto': {'sun': 4, 'water': 8},
+      'planta': {'sun': 6, 'water': 10},
     },
     'pasto': {
-      'semilla': 3,
-      'arbusto': 5,
-      'planta': 7,
+      'semilla': {'sun': 3, 'water': 3},
+      'arbusto': {'sun': 5, 'water': 5},
+      'planta': {'sun': 7, 'water': 7},
     },
+  };
+
+  // Fertilizante requerido por etapa (igual para todos los tipos)
+  static const Map<String, int> _fertilizerRequirements = {
+    'semilla': 4,
+    'arbusto': 6,
+    'planta': 8,
   };
 
   // Flags para notify de animaciones
@@ -179,7 +187,7 @@ class PlantController extends ChangeNotifier {
         desbloqueada: true,
         estado: TreeEstado(fase: 'semilla'),
         // Se le otorgan recursos iniciales para que no muera en los primeros 10 minutos
-        recursosAplicados: TreeRecursosAplicados(sol: 10, agua: 10, composta: 0),
+        recursosAplicados: TreeRecursosAplicados(sol: 1, agua: 1, fertilizante: 0),
       );
       _currentTree!.plantas.add(defaultPasto);
       debugPrint('[PlantController] 🌱 Planta pasto por defecto añadida al tree.');
@@ -281,14 +289,48 @@ class PlantController extends ChangeNotifier {
     if (amount <= 0 || _currentTree == null) return;
     _currentTree!.recursos.composta.cantidad += amount;
     _currentUser?.resources.compostAmount += amount;
+    
+    // Conversión automática: 4 compost = 1 fertilizante
+    final totalCompost = _currentTree!.recursos.composta.cantidad;
+    if (totalCompost >= 4) {
+      final fertilizerGained = totalCompost ~/ 4;
+      final remainingCompost = totalCompost % 4;
+      _currentTree!.recursos.composta.cantidad = remainingCompost;
+      _currentTree!.recursos.fertilizante.cantidad += fertilizerGained;
+      _currentUser?.resources.fertilizerAmount += fertilizerGained;
+    }
+    
     notifyListeners();
   }
 
-  /// Suma [amount] unidades de fertilizante (solo interno — no aparece en .tree).
+  /// Suma [amount] unidades de fertilizante al inventario.
   void addFertilizer(int amount) {
-    if (amount <= 0 || _currentUser == null) return;
-    _currentUser!.resources.fertilizerAmount += amount;
+    if (amount <= 0 || _currentTree == null) return;
+    _currentTree!.recursos.fertilizante.cantidad += amount;
+    _currentUser?.resources.fertilizerAmount += amount;
     notifyListeners();
+  }
+
+  /// Convierte composta del inventario a fertilizante en la planta activa.
+  /// 4 compost = 1 fertilizante. Llámalo después de addCompost().
+  void convertCompostToFertilizer() {
+    if (_currentTree == null) return;
+    
+    final totalCompost = _currentTree!.recursos.composta.cantidad;
+    if (totalCompost < 4) return;
+
+    final fertilizerGained = totalCompost ~/ 4;
+    final remainingCompost = totalCompost % 4;
+
+    // Descontar la composta convertida
+    _currentTree!.recursos.composta.cantidad = remainingCompost;
+
+    // Agregar fertilizante a la planta activa
+    final plant = activePlant;
+    if (plant != null && fertilizerGained > 0) {
+      plant.recursosAplicados.fertilizante += fertilizerGained;
+      notifyListeners();
+    }
   }
 
   // ── Gasto de recursos en la planta activa ──────────────────────────────────────
@@ -358,16 +400,16 @@ class PlantController extends ChangeNotifier {
     return true;
   }
 
-  /// Gasta [amount] unidades de composta del inventario.
+  /// Gasta [amount] unidades de fertilizante del inventario.
+  /// Añade [amount] fertilizante a la planta activa.
   bool spendCompost({int amount = 1}) {
     if (_currentTree == null) return false;
-    if (_currentTree!.recursos.composta.cantidad < amount) return false;
-    _currentTree!.recursos.composta.cantidad -= amount;
-    _currentUser?.resources.compostAmount -= amount;
+    if (_currentTree!.recursos.fertilizante.cantidad < amount) return false;
+    _currentTree!.recursos.fertilizante.cantidad -= amount;
+    _currentUser?.resources.fertilizerAmount -= amount;
     final plant = activePlant;
     if (plant != null) {
-      plant.recursosAplicados.composta += amount;
-      // Composta no reinicia el timer de decay
+      plant.recursosAplicados.fertilizante += amount;
       _checkEvolution(plant);
     }
     notifyListeners();
@@ -396,13 +438,12 @@ class PlantController extends ChangeNotifier {
     if (plant == null) return null;
 
     final currentFase = plant.estado.fase;
-    if (currentFase == 'ent') return null; // Ya es la etapa máxima
+    if (currentFase == 'ent') return null;
 
     final plantType = plant.id;
     final requirements = _evolutionRequirements[plantType];
     if (requirements == null) return null;
 
-    // Mapear fase actual a clave de requisitos
     String faseKey;
     switch (currentFase) {
       case 'semilla':
@@ -419,8 +460,9 @@ class PlantController extends ChangeNotifier {
     }
 
     return {
-      'sol': requirements[faseKey] ?? 0,
-      'composta': requirements[faseKey] ?? 0, // Usa mismo valor para composta
+      'sol': requirements[faseKey]?['sun'] ?? 0,
+      'agua': requirements[faseKey]?['water'] ?? 0,
+      'fertilizante': _fertilizerRequirements[faseKey] ?? 0,
     };
   }
 
@@ -430,15 +472,18 @@ class PlantController extends ChangeNotifier {
     if (plant == null) return false;
 
     final currentFase = plant.estado.fase;
-    if (currentFase == 'ent') return false; // Ya es la etapa máxima
+    if (currentFase == 'ent') return false;
 
     final requirements = getNextStageRequirements();
     if (requirements == null) return false;
 
     final sol = plant.recursosAplicados?.sol ?? 0;
-    final composta = plant.recursosAplicados?.composta ?? 0;
+    final agua = plant.recursosAplicados?.agua ?? 0;
+    final fertilizante = plant.recursosAplicados?.fertilizante ?? 0;
 
-    return sol >= requirements['sol']! && composta >= requirements['composta']!;
+    return sol >= (requirements['sol'] ?? 0) &&
+           agua >= (requirements['agua'] ?? 0) &&
+           fertilizante >= (requirements['fertilizante'] ?? 0);
   }
 
   /// Evoluciona la planta activa a la siguiente etapa
@@ -515,13 +560,15 @@ class PlantController extends ChangeNotifier {
         return;
     }
 
-    final requiredSol = requirements[faseKey] ?? 0;
-    final requiredComposta = requirements[faseKey] ?? 0;
+    final requiredSol = requirements[faseKey]?['sun'] ?? 0;
+    final requiredAgua = requirements[faseKey]?['water'] ?? 0;
+    final requiredFertilizante = _fertilizerRequirements[faseKey] ?? 0;
 
     final sol = plant.recursosAplicados?.sol ?? 0;
-    final composta = plant.recursosAplicados?.composta ?? 0;
+    final agua = plant.recursosAplicados?.agua ?? 0;
+    final fertilizante = plant.recursosAplicados?.fertilizante ?? 0;
 
-    if (sol >= requiredSol && composta >= requiredComposta) {
+    if (sol >= requiredSol && agua >= requiredAgua && fertilizante >= requiredFertilizante) {
       String nextFase;
       switch (plant.estado.fase) {
         case 'semilla':
@@ -666,7 +713,7 @@ class PlantController extends ChangeNotifier {
         recursosAplicados: TreeRecursosAplicados(
           sol: p.sun.toInt(),
           agua: p.water.toInt(),
-          composta: p.fertilizer.toInt(),
+          fertilizante: p.fertilizer.toInt(),
         ),
       );
     }).toList();

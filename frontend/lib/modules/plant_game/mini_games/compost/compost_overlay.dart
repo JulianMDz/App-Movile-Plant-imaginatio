@@ -80,52 +80,30 @@ class CompostOverlay extends FlameGame {
 
   Future<void> _endMinigame() async {
     compostGrid.state = 2;
-    final compostGained = logic.compostReward; // 0 a 4
-
-    int fertilizerGained = 0;
+    final compostGained = logic.compostReward; // 0 a 4 unidades de composta
 
     try {
       final controller = Provider.of<PlantController>(context, listen: false);
 
-      // Conversión: 4 composta acumulada (global) = 1 fertilizante
-      // Se suma la compost ganada al inventario actual y se convierten
-      // los bloques completos de 4 en fertilizante.
-      const int compostPerFertilizer = 4;
-
-      final totalCompost =
-          controller.recursos.composta.cantidad + compostGained;
-      fertilizerGained = totalCompost ~/ compostPerFertilizer;
-      final remainingCompost = totalCompost % compostPerFertilizer;
-
-      // Actualizar inventario: composta residual + fertilizante ganado
-      // Restablecer composta al residuo
-      final delta = remainingCompost - controller.recursos.composta.cantidad;
-      if (delta >= 0) {
-        controller.addCompost(delta);
-      } else {
-        // Se consumió composta existente; ajustar con cantidad neta
-        controller.addCompost(compostGained); // suma lo ganado hoy
+      // Añadir la composta ganada al inventario
+      // La conversión automática (4 compost = 1 fertilizante) se hace en addCompost()
+      if (compostGained > 0) {
+        controller.addCompost(compostGained);
+        await controller.saveTree();
       }
-
-      if (fertilizerGained > 0) {
-        controller.addFertilizer(fertilizerGained);
-      }
-
-      await controller.saveTree();
     } catch (e) {
       debugPrint('[CompostOverlay] Error al guardar: $e');
     }
 
-    _showAlert(compostGained, fertilizerGained);
+    _showAlert(compostGained);
   }
 
-  void _showAlert(int compostGained, int fertilizerGained) {
+  void _showAlert(int compostGained) {
     add(
       CompostAlertComponent(
         size: size,
         onClose: _closeOverlay,
         compostAmount: compostGained,
-        fertilizerAmount: fertilizerGained,
       ),
     );
   }
@@ -150,7 +128,7 @@ class CompostAlertComponent extends PositionComponent with TapCallbacks {
     this.fertilizerAmount = 0,
   }) : super(size: size);
 
-  @override
+@override
   Future<void> onLoad() async {
     // Fondo semitransparente
     add(
@@ -177,7 +155,26 @@ class CompostAlertComponent extends PositionComponent with TapCallbacks {
       ),
     );
 
-    // Instrucción de cierre
+    // Texto de fertilizante convertido (si aplica)
+    if (fertilizerAmount > 0) {
+      add(
+        TextComponent(
+          text: '🧪 +$fertilizerAmount Fertilizante',
+          textRenderer: TextPaint(
+            style: const TextStyle(
+              color: Color(0xFFFFAA00),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              shadows: [Shadow(blurRadius: 8, color: Colors.black)],
+            ),
+          ),
+          anchor: Anchor.center,
+          position: size / 2 - Vector2(0, 40),
+        ),
+      );
+    }
+
+    // Instrución de cierre
     add(
       TextComponent(
         text: 'Toca para continuar',

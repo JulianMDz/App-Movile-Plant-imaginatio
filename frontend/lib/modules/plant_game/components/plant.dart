@@ -24,22 +24,7 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
       stageEnum: await _loadStageAnimation(stageEnum),
     };
 
-    current = stageEnum;
-  
-  switch (stageEnum) {
-      case PlantStage.seed:
-        scale = stageScale;
-        break;
-      case PlantStage.bush:
-        scale = stageScale;
-        break;
-      case PlantStage.tree:
-        scale = stageScale;
-        break;
-      case PlantStage.ent:
-        scale = stageScale;
-        break;
-    }
+current = stageEnum;
   }
 
   PlantStage get _activeStage => current ?? _intToStage(initialStage);
@@ -92,7 +77,7 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
 
   String get folderName {
     if (plantType.isEmpty) return 'Pasto';
-    return plantType[0].toUpperCase() + plantType.substring(1);
+    return plantType;
   }
 
   Future<SpriteAnimation> _loadStageAnimation(PlantStage stage) async {

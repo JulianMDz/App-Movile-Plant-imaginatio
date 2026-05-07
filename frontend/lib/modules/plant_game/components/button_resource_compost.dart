@@ -60,13 +60,11 @@ class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
     super.onRemove();
   }
 
-  /// Muestra la cantidad entera de fertilizante disponible.
-  /// 4 puntos de composta = 1 fertilizante.
+  /// Muestra la cantidad de fertilizante disponible en el inventario.
   String _stockText() {
     try {
       final c = Provider.of<PlantController>(context, listen: false);
-      final cantidad = c.recursos.composta.cantidad;
-      return '${cantidad ~/ 4}';
+      return '${c.recursos.fertilizante.cantidad}';
     } catch (_) {
       return '0';
     }
@@ -78,8 +76,8 @@ class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
 
   void _onTap() {
     final controller = Provider.of<PlantController>(context, listen: false);
-    // Gastar 1 fertilizante requiere consumir 4 puntos de composta
-    final success = controller.spendCompost(amount: 4);
+    // Gastar 1 fertilizante del inventario
+    final success = controller.spendCompost(amount: 1);
     if (!success) return;
 
     final plantType = controller.activePlant?.id ?? 'pasto';
