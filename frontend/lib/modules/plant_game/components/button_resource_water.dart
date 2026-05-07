@@ -97,7 +97,9 @@ class Button_resource_water extends SpriteButtonComponent with HasGameRef {
     final success = controller.spendWater();
     if (!success) return;
 
-    final anim = Animation_water('pasto', Vector2(gameRef.size.x, gameRef.size.y))
+    final plantType = controller.activePlant?.id ?? 'pasto';
+
+    final anim = Animation_water(plantType, Vector2(gameRef.size.x, gameRef.size.y))
       ..anchor = Anchor.center
       ..position = Vector2(gameRef.size.x / 2, gameRef.size.y / 2);
     gameRef.add(anim);

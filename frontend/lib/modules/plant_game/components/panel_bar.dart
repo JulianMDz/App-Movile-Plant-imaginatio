@@ -61,7 +61,7 @@ class PanelLayout extends PositionComponent {
       position: Vector2(0, _rowSpacing),
     );
 
-    // ── Fila Composta (y = rowSpacing*2) ─────────────────────────────────────
+    // ── Fila Fertilizante (y = rowSpacing*2) ─────────────────────────────────
     _barraComposta = BarraCarga(fillColor: const Color.fromARGB(255, 97, 47, 14))
       ..size     = Vector2(_barW, _barH)
       ..position = Vector2(barX, _rowSpacing * 2 + barCenterY);
@@ -106,7 +106,7 @@ class PanelLayout extends PositionComponent {
       _barraAgua.progress =
           (applied.agua / _maxRecurso).clamp(0.0, 1.0);
       _barraComposta.progress =
-          (applied.composta / _maxRecurso).clamp(0.0, 1.0);
+          (applied.fertilizante / _maxRecurso).clamp(0.0, 1.0);
     } catch (_) {}
   }
 }

@@ -66,9 +66,20 @@ class PlantGameScreen extends FlameGame {
 
   @override
   Future<void> onLoad() async {
+    // Cargar imágenes de Pasto (fallback) al inicio
+    await images.loadAll([
+      'Planta/Pasto/fase1_ss.png',
+      'Planta/Pasto/fase2_ss.png',
+      'Planta/Pasto/fase3_ss.png',
+      'Planta/Pasto/fase4_ss.png',
+    ]);
+
     // Cargar datos del .tree al iniciar y esperar para usar la planta real
     final controller = Provider.of<PlantController>(context, listen: false);
     await controller.loadCurrentTree();
+
+    // Listener para animaciones de evolución y muerte
+    controller.addListener(_onControllerAnimationChange);
 
     // Música principal al abrir la pantalla
     await AudioManager.musicaPrincipal();
@@ -298,5 +309,56 @@ class PlantGameScreen extends FlameGame {
       
       _columnRight.position = Vector2(size.x - 8, size.y / 2);
       _rowDown.position = Vector2(size.x / 2, size.y - 10);
+  }
+
+  void _onControllerAnimationChange() {
+    final controller = Provider.of<PlantController>(context, listen: false);
+    final plantType = controller.activePlant?.id ?? 'pasto';
+
+    if (controller.showEvolutionAnimation) {
+      final anim = Animation_evolution(
+        plantType,
+        Vector2(size.x / 2, size.y / 2),
+      )
+        ..anchor = Anchor.center
+        ..removeOnFinish = true;
+      add(anim);
+      controller.clearAnimationFlags();
+      debugPrint('[PlantScreen] 🌱 Animación de evolución reproducida');
+    }
+
+    if (controller.showDeathAnimation) {
+      final anim = Animation_tombstone(
+        plantType,
+        Vector2(size.x / 2, size.y / 2),
+      )
+        ..anchor = Anchor.center
+        ..removeOnFinish = true;
+      add(anim);
+      controller.clearAnimationFlags();
+      debugPrint('[PlantScreen] 💀 Animación de muerte reproducida');
+    }
+
+    if (controller.showCriticalAnimation) {
+      final anim = Animation_critical(
+        plantType,
+        Vector2(size.x / 2, size.y * 0.3),
+      )
+        ..anchor = Anchor.center
+        ..removeOnFinish = true;
+      add(anim);
+      controller.clearAnimationFlags();
+    }
+
+    if (controller.showDangerAnimation) {
+      final anim = Animation_danger(
+        plantType,
+        Vector2(size.x / 2, size.y * 0.3),
+      )
+        ..anchor = Anchor.center
+        ..removeOnFinish = true;
+      add(anim);
+      controller.clearAnimationFlags();
+    }
   }
 }

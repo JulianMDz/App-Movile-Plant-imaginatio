@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
-import 'package:flame/components.dart';
+import 'package:flutter/foundation.dart';
 
 enum PlantStage { seed, bush, tree, ent }
 
@@ -24,22 +24,7 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
       stageEnum: await _loadStageAnimation(stageEnum),
     };
 
-    current = stageEnum;
-  
-  switch (stageEnum) {
-      case PlantStage.seed:
-        scale = stageScale;
-        break;
-      case PlantStage.bush:
-        scale = stageScale;
-        break;
-      case PlantStage.tree:
-        scale = stageScale;
-        break;
-      case PlantStage.ent:
-        scale = stageScale;
-        break;
-    }
+current = stageEnum;
   }
 
   PlantStage get _activeStage => current ?? _intToStage(initialStage);
@@ -92,7 +77,7 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
 
   String get folderName {
     if (plantType.isEmpty) return 'Pasto';
-    return plantType[0].toUpperCase() + plantType.substring(1);
+    return plantType;
   }
 
   Future<SpriteAnimation> _loadStageAnimation(PlantStage stage) async {
@@ -113,13 +98,32 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   }
 
   Future<SpriteAnimation> _loadAnim(String file, int frames,) async {
-    return SpriteAnimation.load(
-      'Planta/$file',
-      SpriteAnimationData.sequenced(
-        amount: frames,
-        stepTime: 0.1,
-        textureSize: Vector2(500, 500),
-      ),
-    );
+    try {
+      return await SpriteAnimation.load(
+        'Planta/$file',
+        SpriteAnimationData.sequenced(
+          amount: frames,
+          stepTime: 0.1,
+          textureSize: Vector2(500, 500),
+        ),
+      );
+    } catch (e) {
+      // Si falla, intentar cargar Pasto como fallback
+      debugPrint('[PlantComponent] Error cargando $file, usando Pasto como fallback');
+      try {
+        return await SpriteAnimation.load(
+          'Planta/Pasto/fase2_ss.png',
+          SpriteAnimationData.sequenced(
+            amount: frames,
+            stepTime: 0.1,
+            textureSize: Vector2(500, 500),
+          ),
+        );
+      } catch (e2) {
+        // Si Pasto también falla, crear una animación vacía
+        debugPrint('[PlantComponent] Error crítico: ni $file ni Pasto funcionan');
+        rethrow;
+      }
+    }
   }
 }

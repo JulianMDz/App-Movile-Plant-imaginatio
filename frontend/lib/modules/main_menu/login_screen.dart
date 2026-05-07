@@ -104,7 +104,7 @@ class _LoginOverlayState extends State<LoginOverlay> {
             // Align centra el TextField en pantalla, igual que el panel del juego.
             // Ajusta el offset Y si tu panel no está exactamente centrado.
             return Align(
-              alignment: const Alignment(0, -0.1), // X=centro, Y=-0.1 sube más para coincidir con el panel
+              alignment: const Alignment(0, 0), // X=centro, Y=-0.1 sube más para coincidir con el panel
               child: SizedBox(
                 width: 250,
                 child: TextField(

@@ -89,25 +89,33 @@ class TreeRecursos {
   /// 🟢 Flutter
   TreeRecurso composta;
 
+  /// 🟢 Flutter
+  TreeRecurso fertilizante;
+
   TreeRecursos({
     TreeRecurso? agua,
     TreeRecurso? sol,
     TreeRecurso? composta,
+    TreeRecurso? fertilizante,
   })  : agua = agua ?? TreeRecurso(),
         sol = sol ?? TreeRecurso(),
-        composta = composta ?? TreeRecurso();
+        composta = composta ?? TreeRecurso(),
+        fertilizante = fertilizante ?? TreeRecurso();
 
   factory TreeRecursos.fromJson(Map<String, dynamic> json) => TreeRecursos(
         agua: TreeRecurso.fromJson((json['agua'] as Map<String, dynamic>?) ?? {}),
         sol: TreeRecurso.fromJson((json['sol'] as Map<String, dynamic>?) ?? {}),
         composta:
             TreeRecurso.fromJson((json['composta'] as Map<String, dynamic>?) ?? {}),
+        fertilizante:
+            TreeRecurso.fromJson((json['fertilizante'] as Map<String, dynamic>?) ?? {}),
       );
 
   Map<String, dynamic> toJson() => {
         'agua': agua.toJson(),
         'sol': sol.toJson(),
         'composta': composta.toJson(),
+        'fertilizante': fertilizante.toJson(),
       };
 }
 
@@ -223,21 +231,21 @@ class TreeRecursosAplicados {
   int sol;
 
   /// 🟢 Flutter
-  int composta;
+  int fertilizante;
 
-  TreeRecursosAplicados({this.agua = 0, this.sol = 0, this.composta = 0});
+  TreeRecursosAplicados({this.agua = 0, this.sol = 0, this.fertilizante = 0});
 
   factory TreeRecursosAplicados.fromJson(Map<String, dynamic> json) =>
       TreeRecursosAplicados(
         agua: (json['agua'] as int?) ?? 1,
         sol: (json['sol'] as int?) ?? 1,
-        composta: (json['composta'] as int?) ?? 0,
+        fertilizante: (json['fertilizante'] as int?) ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
         'agua': agua,
         'sol': sol,
-        'composta': composta,
+        'fertilizante': fertilizante,
       };
 }
 

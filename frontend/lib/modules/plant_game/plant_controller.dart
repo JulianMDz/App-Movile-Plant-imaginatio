@@ -22,10 +22,99 @@ class PlantController extends ChangeNotifier {
   final SharedTreeStorageService _sharedStorage = SharedTreeStorageService();
   static const _uuid = Uuid();
 
+  // ── Requisitos de evolución por tipo y etapa ─────────────────────────────────
+  // Formato: {tipo: {fase: {sun: X, water: Y}}}
+  static const Map<String, Map<String, Map<String, int>>> _evolutionRequirements = {
+    'solar': {
+      'semilla': {'sun': 6, 'water': 2},
+      'arbusto': {'sun': 8, 'water': 4},
+      'planta': {'sun': 10, 'water': 6},
+    },
+    'xerofito': {
+      'semilla': {'sun': 4, 'water': 2},
+      'arbusto': {'sun': 6, 'water': 4},
+      'planta': {'sun': 8, 'water': 6},
+    },
+    'templado': {
+      'semilla': {'sun': 4, 'water': 4},
+      'arbusto': {'sun': 6, 'water': 6},
+      'planta': {'sun': 8, 'water': 8},
+    },
+    'montana': {
+      'semilla': {'sun': 2, 'water': 4},
+      'arbusto': {'sun': 4, 'water': 6},
+      'planta': {'sun': 6, 'water': 8},
+    },
+    'hidro': {
+      'semilla': {'sun': 2, 'water': 6},
+      'arbusto': {'sun': 4, 'water': 8},
+      'planta': {'sun': 6, 'water': 10},
+    },
+    'pasto': {
+      'semilla': {'sun': 3, 'water': 3},
+      'arbusto': {'sun': 5, 'water': 5},
+      'planta': {'sun': 7, 'water': 7},
+    },
+  };
+
+  // Fertilizante requerido por etapa (igual para todos los tipos)
+  static const Map<String, int> _fertilizerRequirements = {
+    'semilla': 4,
+    'arbusto': 6,
+    'planta': 8,
+  };
+
+  // Flags para notify de animaciones
+
+  // ── Clasificación de plantas por nombre de carpeta ───────────────────────────
+  // Mapea nombres de carpetas de Unity al tipo de planta
+  static String _getPlantType(String folderName) {
+    final lowerName = folderName.toLowerCase();
+    
+    // XEROFITO (primero los más específicos)
+    if (lowerName.contains('alcaparro enano')) return 'xerofito';
+    if (lowerName.contains('dividivi')) return 'xerofito';
+    
+    // SOLAR
+    if (lowerName.contains('alcaparro grande')) return 'solar';
+    if (lowerName.contains('alcaparro')) return 'solar';
+    if (lowerName.contains('cajeto')) return 'solar';
+    if (lowerName.contains('espino')) return 'solar';
+    if (lowerName.contains('drago')) return 'solar';
+    
+    // MONTAÑA
+    if (lowerName.contains('pino romerón')) return 'montana';
+    if (lowerName.contains('roble')) return 'montana';
+    if (lowerName.contains('nogal')) return 'montana';
+    if (lowerName.contains('duraznillo')) return 'montana';
+    
+    // TEMPLADO
+    if (lowerName.contains('manzano')) return 'templado';
+    if (lowerName.contains('mangle')) return 'templado';
+    if (lowerName.contains('sietecueros')) return 'templado';
+    if (lowerName.contains('cedro')) return 'templado';
+    
+    // HIDRO
+    if (lowerName.contains('cucharo negro')) return 'hidro';
+    if (lowerName.contains('aliso')) return 'hidro';
+    if (lowerName.contains('cedrillo')) return 'hidro';
+    
+    // PASTO (default/base)
+    return 'pasto';
+  }
+
+  /// Retorna el tipo de planta basado en el nombre/id de la carpeta
+  String getPlantType(String folderName) => _getPlantType(folderName);
+  bool _showEvolutionAnimation = false;
+  bool _showDeathAnimation = false;
+  bool _showCriticalAnimation = false;
+  bool _showDangerAnimation = false;
+
   // ── Estado ────────────────────────────────────────────────────────────────
 
   TreeData? _currentTree;
   UserModel? _currentUser; // compatibilidad interna con PlantService
+  int _activePlantIndex = 0; // Índice de la planta actualmente seleccionada
 
   // ── Getters públicos ──────────────────────────────────────────────────────
 
@@ -70,7 +159,8 @@ class PlantController extends ChangeNotifier {
       if (_currentUser == null) return;
 
       _currentTree = _treeFromUserModel(_currentUser!);
-      _ensureDefaultPlant();            // garantiza planta por defecto también en fallback
+      _ensureDefaultPlant();
+      await saveTree();                  // persiste el tree con la planta pasto inicial
       notifyListeners();
     } catch (e) {
       debugPrint('[PlantController] Error al cargar datos: $e');
@@ -97,7 +187,7 @@ class PlantController extends ChangeNotifier {
         desbloqueada: true,
         estado: TreeEstado(fase: 'semilla'),
         // Se le otorgan recursos iniciales para que no muera en los primeros 10 minutos
-        recursosAplicados: TreeRecursosAplicados(sol: 10, agua: 10, composta: 0),
+        recursosAplicados: TreeRecursosAplicados(sol: 1, agua: 1, fertilizante: 0),
       );
       _currentTree!.plantas.add(defaultPasto);
       debugPrint('[PlantController] 🌱 Planta pasto por defecto añadida al tree.');
@@ -144,9 +234,19 @@ class PlantController extends ChangeNotifier {
       // Condición de muerte: sin agua O sin sol
       if (plant.recursosAplicados.agua <= 0 || plant.recursosAplicados.sol <= 0) {
         plant.estado.fase = 'muerto';
+        _showDeathAnimation = true;
         debugPrint(
           '[PlantController] 🚨 Planta ${plant.id} ha muerto por falta de recursos.'
         );
+      } else {
+        // Verificar estado de peligro después del decay
+        final sol = plant.recursosAplicados.sol;
+        final agua = plant.recursosAplicados.agua;
+        if (sol <= 2 || agua <= 2) {
+          _showCriticalAnimation = true;
+        } else if (sol <= 4 || agua <= 4) {
+          _showDangerAnimation = true;
+        }
       }
 
       // Avanzar lastInteraction hasta el último intervalo completo procesado
@@ -189,29 +289,80 @@ class PlantController extends ChangeNotifier {
     if (amount <= 0 || _currentTree == null) return;
     _currentTree!.recursos.composta.cantidad += amount;
     _currentUser?.resources.compostAmount += amount;
+    
+    // Conversión automática: 4 compost = 1 fertilizante
+    final totalCompost = _currentTree!.recursos.composta.cantidad;
+    if (totalCompost >= 4) {
+      final fertilizerGained = totalCompost ~/ 4;
+      final remainingCompost = totalCompost % 4;
+      _currentTree!.recursos.composta.cantidad = remainingCompost;
+      _currentTree!.recursos.fertilizante.cantidad += fertilizerGained;
+      _currentUser?.resources.fertilizerAmount += fertilizerGained;
+    }
+    
     notifyListeners();
   }
 
-  /// Suma [amount] unidades de fertilizante (solo interno — no aparece en .tree).
+  /// Suma [amount] unidades de fertilizante al inventario.
   void addFertilizer(int amount) {
-    if (amount <= 0 || _currentUser == null) return;
-    _currentUser!.resources.fertilizerAmount += amount;
+    if (amount <= 0 || _currentTree == null) return;
+    _currentTree!.recursos.fertilizante.cantidad += amount;
+    _currentUser?.resources.fertilizerAmount += amount;
     notifyListeners();
+  }
+
+  /// Convierte composta del inventario a fertilizante en la planta activa.
+  /// 4 compost = 1 fertilizante. Llámalo después de addCompost().
+  void convertCompostToFertilizer() {
+    if (_currentTree == null) return;
+    
+    final totalCompost = _currentTree!.recursos.composta.cantidad;
+    if (totalCompost < 4) return;
+
+    final fertilizerGained = totalCompost ~/ 4;
+    final remainingCompost = totalCompost % 4;
+
+    // Descontar la composta convertida
+    _currentTree!.recursos.composta.cantidad = remainingCompost;
+
+    // Agregar fertilizante a la planta activa
+    final plant = activePlant;
+    if (plant != null && fertilizerGained > 0) {
+      plant.recursosAplicados.fertilizante += fertilizerGained;
+      notifyListeners();
+    }
   }
 
   // ── Gasto de recursos en la planta activa ──────────────────────────────────────
 
-  /// Retorna la primera planta desbloqueada y viva, o null si no hay ninguna.
+  /// Retorna la planta activa según el índice seleccionado.
   TreePlanta? get activePlant {
     if (_currentTree == null || _currentTree!.plantas.isEmpty) return null;
-    try {
-      return _currentTree!.plantas.firstWhere(
-        (p) => p.desbloqueada && p.estado.fase != 'muerto',
-      );
-    } catch (_) {
-      // No hay planta viva desbloqueada
+    final plants = _currentTree!.plantas.where((p) => p.desbloqueada && p.estado.fase != 'muerto').toList();
+    if (plants.isEmpty) return null;
+    final index = _activePlantIndex.clamp(0, plants.length - 1);
+    return plants[index];
+  }
+
+  /// Retorna la planta por índice directo (para inventario).
+  TreePlanta? getPlantByIndex(int index) {
+    if (_currentTree == null || index < 0 || index >= _currentTree!.plantas.length) {
       return null;
     }
+    return _currentTree!.plantas[index];
+  }
+
+  /// Establece la planta activa por índice.
+  void setActivePlant(int index) {
+    final plants = _currentTree?.plantas.where((p) => p.desbloqueada && p.estado.fase != 'muerto').toList() ?? [];
+    if (plants.isEmpty || index < 0 || index >= plants.length) return;
+
+    // Buscar el índice real en la lista completa
+    final targetPlant = plants[index];
+    final realIndex = _currentTree!.plantas.indexOf(targetPlant);
+    _activePlantIndex = realIndex;
+    debugPrint('[PlantController] Planta activa establecida: índice $realIndex');
+    notifyListeners();
   }
 
   /// Gasta [amount] unidades de sol del inventario.
@@ -228,6 +379,7 @@ class PlantController extends ChangeNotifier {
     if (plant != null) {
       plant.recursosAplicados.sol += amount;
       // No reiniciamos lastInteraction para no alterar el reloj pasivo de decay (que también afecta al agua)
+      _checkEvolution(plant);
     }
     notifyListeners();
     return true; // siempre true si hay stock → animación siempre se dispara
@@ -248,24 +400,228 @@ class PlantController extends ChangeNotifier {
     return true;
   }
 
-  /// Gasta [amount] unidades de composta del inventario.
+  /// Gasta [amount] unidades de fertilizante del inventario.
+  /// Añade [amount] fertilizante a la planta activa.
   bool spendCompost({int amount = 1}) {
     if (_currentTree == null) return false;
-    if (_currentTree!.recursos.composta.cantidad < amount) return false;
-    _currentTree!.recursos.composta.cantidad -= amount;
-    _currentUser?.resources.compostAmount -= amount;
+    if (_currentTree!.recursos.fertilizante.cantidad < amount) return false;
+    _currentTree!.recursos.fertilizante.cantidad -= amount;
+    _currentUser?.resources.fertilizerAmount -= amount;
     final plant = activePlant;
     if (plant != null) {
-      plant.recursosAplicados.composta += amount;
-      // Composta no reinicia el timer de decay
+      plant.recursosAplicados.fertilizante += amount;
+      _checkEvolution(plant);
     }
     notifyListeners();
     return true;
   }
 
+  // ── Sistema de Evolución ─────────────────────────────────────────────────────
+
+  /// Retorna true si hay animación de evolución pendientes
+  bool get showEvolutionAnimation => _showEvolutionAnimation;
+  bool get showDeathAnimation => _showDeathAnimation;
+  bool get showCriticalAnimation => _showCriticalAnimation;
+  bool get showDangerAnimation => _showDangerAnimation;
+
+  /// Limpia los flags de animación
+  void clearAnimationFlags() {
+    _showEvolutionAnimation = false;
+    _showDeathAnimation = false;
+    _showCriticalAnimation = false;
+    _showDangerAnimation = false;
+  }
+
+  /// Obtiene los requisitos para la siguiente etapa de la planta activa
+  Map<String, int>? getNextStageRequirements() {
+    final plant = activePlant;
+    if (plant == null) return null;
+
+    final currentFase = plant.estado.fase;
+    if (currentFase == 'ent') return null;
+
+    final plantType = plant.id;
+    final requirements = _evolutionRequirements[plantType];
+    if (requirements == null) return null;
+
+    String faseKey;
+    switch (currentFase) {
+      case 'semilla':
+        faseKey = 'semilla';
+        break;
+      case 'arbusto':
+        faseKey = 'arbusto';
+        break;
+      case 'planta':
+        faseKey = 'planta';
+        break;
+      default:
+        return null;
+    }
+
+    return {
+      'sol': requirements[faseKey]?['sun'] ?? 0,
+      'agua': requirements[faseKey]?['water'] ?? 0,
+      'fertilizante': _fertilizerRequirements[faseKey] ?? 0,
+    };
+  }
+
+  /// Verifica si la planta activa puede evolucionar a la siguiente etapa
+  bool canEvolve() {
+    final plant = activePlant;
+    if (plant == null) return false;
+
+    final currentFase = plant.estado.fase;
+    if (currentFase == 'ent') return false;
+
+    final requirements = getNextStageRequirements();
+    if (requirements == null) return false;
+
+    final sol = plant.recursosAplicados?.sol ?? 0;
+    final agua = plant.recursosAplicados?.agua ?? 0;
+    final fertilizante = plant.recursosAplicados?.fertilizante ?? 0;
+
+    return sol >= (requirements['sol'] ?? 0) &&
+           agua >= (requirements['agua'] ?? 0) &&
+           fertilizante >= (requirements['fertilizante'] ?? 0);
+  }
+
+  /// Evoluciona la planta activa a la siguiente etapa
+  bool evolve() {
+    final plant = activePlant;
+    if (plant == null || !canEvolve()) return false;
+
+    final currentFase = plant.estado.fase;
+    String nextFase;
+
+    switch (currentFase) {
+      case 'semilla':
+        nextFase = 'arbusto';
+        break;
+      case 'arbusto':
+        nextFase = 'planta';
+        break;
+      case 'planta':
+        nextFase = 'ent';
+        break;
+      default:
+        return false;
+    }
+
+    plant.estado.fase = nextFase;
+    _showEvolutionAnimation = true;
+
+    debugPrint('[PlantController] 🌱 Planta evolucionó a: $nextFase');
+    notifyListeners();
+    return true;
+  }
+
+  /// Verifica la salud de la planta y actualiza los flags de animación
+  void checkPlantHealth() {
+    final plant = activePlant;
+    if (plant == null) return;
+
+    final sol = plant.recursosAplicados?.sol ?? 0;
+    final agua = plant.recursosAplicados?.agua ?? 0;
+
+    if (sol <= 0 || agua <= 0) {
+      plant.estado.fase = 'muerto';
+      _showDeathAnimation = true;
+      debugPrint('[PlantController] 💀 Planta murió');
+    } else if (sol <= 2 || agua <= 2) {
+      _showCriticalAnimation = true;
+    } else if (sol <= 4 || agua <= 4) {
+      _showDangerAnimation = true;
+    }
+
+    notifyListeners();
+  }
+
+  /// Verifica si la planta puede evolucionar y la evoluciona si es posible
+  void _checkEvolution(TreePlanta plant) {
+    if (plant.estado.fase == 'ent') return;
+
+    final plantType = plant.id;
+    final requirements = _evolutionRequirements[plantType];
+    if (requirements == null) return;
+
+    String faseKey;
+    switch (plant.estado.fase) {
+      case 'semilla':
+        faseKey = 'semilla';
+        break;
+      case 'arbusto':
+        faseKey = 'arbusto';
+        break;
+      case 'planta':
+        faseKey = 'planta';
+        break;
+      default:
+        return;
+    }
+
+    final requiredSol = requirements[faseKey]?['sun'] ?? 0;
+    final requiredAgua = requirements[faseKey]?['water'] ?? 0;
+    final requiredFertilizante = _fertilizerRequirements[faseKey] ?? 0;
+
+    final sol = plant.recursosAplicados?.sol ?? 0;
+    final agua = plant.recursosAplicados?.agua ?? 0;
+    final fertilizante = plant.recursosAplicados?.fertilizante ?? 0;
+
+    if (sol >= requiredSol && agua >= requiredAgua && fertilizante >= requiredFertilizante) {
+      String nextFase;
+      switch (plant.estado.fase) {
+        case 'semilla':
+          nextFase = 'arbusto';
+          break;
+        case 'arbusto':
+          nextFase = 'planta';
+          break;
+        case 'planta':
+          nextFase = 'ent';
+          break;
+        default:
+          return;
+      }
+
+      plant.estado.fase = nextFase;
+      _showEvolutionAnimation = true;
+      debugPrint('[PlantController] 🌱 Planta evolucionó automáticamente a: $nextFase');
+    }
+  }
+
   /// Acceso rápido a los recursos aplicados de la planta activa.
   TreeRecursosAplicados get activePlantResources =>
       activePlant?.recursosAplicados ?? TreeRecursosAplicados();
+
+  // ── Métodos de Debug ───────────────────────────────────────────────────────
+
+  /// Retorna información de debug de las plantas (para panel de debug).
+  String getDebugPlantsInfo() {
+    final plants = this.plants;
+    if (plants.isEmpty) return 'Sin plantas';
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < plants.length; i++) {
+      final p = plants[i];
+      final sol = p.recursosAplicados?.sol ?? 0;
+      final agua = p.recursosAplicados?.agua ?? 0;
+      final fase = p.estado?.fase ?? 'desconocido';
+      buffer.writeln('P$i: S:$sol A:$agua F:$fase');
+    }
+    return buffer.toString();
+  }
+
+  /// Avanza el tiempo de todas las plantas por [minutes] minutos (para debug).
+  Future<void> debugAdvanceTime(int minutes) async {
+    final plants = _currentTree?.plantas ?? [];
+    for (final plant in plants) {
+      final lastInteraction = await _authStorage.getPlantLastInteraction(plant.instanceId);
+      final newTime = lastInteraction.add(Duration(minutes: minutes));
+      await _authStorage.savePlantLastInteraction(plant.instanceId, newTime);
+    }
+    debugPrint('[Debug] Tiempo avanzadas $minutes minutos');
+  }
 
   /// Persiste el .tree actual en SharedPreferences aplicando la lógica de
   /// merge para preservar los campos 🔴 de Unity.
@@ -357,7 +713,7 @@ class PlantController extends ChangeNotifier {
         recursosAplicados: TreeRecursosAplicados(
           sol: p.sun.toInt(),
           agua: p.water.toInt(),
-          composta: p.fertilizer.toInt(),
+          fertilizante: p.fertilizer.toInt(),
         ),
       );
     }).toList();
