@@ -22,6 +22,7 @@ import 'package:frontend/modules/plant_game/components/Text_name.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_compost.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_sun.dart';
 import 'package:frontend/modules/plant_game/components/button_resource_water.dart';
+import 'package:frontend/modules/plant_game/components/cooldown_indicator.dart';
 import 'package:frontend/modules/plant_game/components/panel_bar.dart';
 import 'package:frontend/modules/plant_game/components/panel_resource.dart';
 import 'package:frontend/modules/plant_game/components/panel_title.dart';
@@ -110,6 +111,12 @@ class PlantGameScreen extends FlameGame {
       onPressed: () {
         AudioManager.recolectarSoles();
         AudioManager.miniGames();
+        if (!controller.canPlaySunGame()) {
+          final remaining = controller.getSunGameRemainingCooldown();
+          final timeStr = controller.formatRemainingCooldown(remaining);
+          _showCooldownMessage('Sol', timeStr);
+          return;
+        }
         add(SunOverlay(context: context));
       },
     );
@@ -118,6 +125,12 @@ class PlantGameScreen extends FlameGame {
       onPressed: () {
         AudioManager.recolectarAgua();
         AudioManager.miniGames();
+        if (!controller.canPlayWaterGame()) {
+          final remaining = controller.getWaterGameRemainingCooldown();
+          final timeStr = controller.formatRemainingCooldown(remaining);
+          _showCooldownMessage('Agua', timeStr);
+          return;
+        }
         add(WaterOverlay(context: context));
       },
     );
@@ -127,6 +140,12 @@ class PlantGameScreen extends FlameGame {
       onPressed: () {
         AudioManager.recolectarComposta();
         AudioManager.miniGames();
+        if (!controller.canPlayCompostGame()) {
+          final remaining = controller.getCompostGameRemainingCooldown();
+          final timeStr = controller.formatRemainingCooldown(remaining);
+          _showCooldownMessage('Composta', timeStr);
+          return;
+        }
         add(CompostOverlay(context: context));
       },
     );
@@ -207,6 +226,28 @@ class PlantGameScreen extends FlameGame {
       ..position = Vector2(size.x /2, size.y / 2+10);
 
     add(_layoutCenter);
+
+    // Indicadores de cooldown sobre los botones de minijuego
+    final sunCooldown = CooldownIndicator(
+      context: context,
+      gameType: 'sun',
+      position: Vector2(size.x / 2, size.y / 2 - 60),
+    );
+    add(sunCooldown);
+
+    final waterCooldown = CooldownIndicator(
+      context: context,
+      gameType: 'water',
+      position: Vector2(size.x / 2 - 80, size.y / 2 + 90),
+    );
+    add(waterCooldown);
+
+    final compostCooldown = CooldownIndicator(
+      context: context,
+      gameType: 'compost',
+      position: Vector2(size.x / 2 + 80, size.y / 2 + 90),
+    );
+    add(compostCooldown);
 
     add(_panelBar);
 
@@ -372,5 +413,11 @@ class PlantGameScreen extends FlameGame {
     } catch (e) {
       // Silenciar errores de contexto - el widget se está disposeando
     }
+  }
+
+  void _showCooldownMessage(String gameName, String remainingTime) {
+    debugPrint('[$gameName Game] En cooldown - tiempo restante: $remainingTime');
+    // TODO: Mostrar snackbar visual en Flutter
+    // Por ahora solo debug log - se puede agregar UI después
   }
 }

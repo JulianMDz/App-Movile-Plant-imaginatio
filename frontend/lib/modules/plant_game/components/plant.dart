@@ -48,6 +48,11 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
       debugPrint('[PlantComponent] ✅ Planta actualizada a: $newPlantType');
     } catch (e, stack) {
       debugPrint('[PlantComponent] ❌ Error al actualizar planta: $e');
+      // Fallback: mantener animación anterior o asignar animación vacía
+      final stageEnum = _intToStage(newStage);
+      if (animations?[stageEnum] == null) {
+        animations = {stageEnum: SpriteAnimation(<SpriteAnimationFrame>[], loop: true)};
+      }
     }
   }
 
@@ -100,16 +105,13 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   String get folderName {
     if (plantType.isEmpty) return 'Pasto';
     
-    // Mapear IDs de planta a nombres de carpetas
     final lowerId = plantType.toLowerCase();
     
-    // XEROFITO - primero los más específicos
+    // XEROFITO
     if (lowerId.contains('alcaparro enano')) return 'Alcaparro enano';
-    if (lowerId.contains('dividivi')) return 'Dividivi';
     
-    // SOLAR - primero los más específicos
-    if (lowerId.contains('alcaparro grande')) return 'Alcaparro grande';
-    if (lowerId.contains('alcaparro')) return 'Alcaparro';
+    // SOLAR
+    if (lowerId.contains('alcaparro grande')) return 'Alcaparro enano';
     if (lowerId.contains('cajeto')) return 'Cajeto';
     if (lowerId.contains('espino')) return 'Espino';
     if (lowerId.contains('drago')) return 'Drago';
@@ -117,7 +119,6 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
     // HIDRO
     if (lowerId.contains('aliso')) return 'Aliso';
     if (lowerId.contains('cedrillo')) return 'Cedrillo';
-    if (lowerId.contains('cucharo')) return 'Cucharo';
     
     // MONTAÑA
     if (lowerId.contains('pino')) return 'Pino romerón';
@@ -131,11 +132,11 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
     if (lowerId.contains('sietecueros')) return 'Sietecueros';
     if (lowerId.contains('cedro')) return 'Cedro';
     
-    // PASTO (default)
+    // BASE
     if (lowerId.contains('pasto')) return 'Pasto';
     
-    // Si no hay match, usar el ID tal cual
-    return plantType;
+    // Default: Pasto
+    return 'Pasto';
   }
 
   Future<SpriteAnimation> _loadStageAnimation(PlantStage stage, [String? overridePlantType]) async {
@@ -162,13 +163,11 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
     
     final lowerId = plantType.toLowerCase();
     
-    // XEROFITO - primero los más específicos
+    // XEROFITO
     if (lowerId.contains('alcaparro enano')) return 'Alcaparro enano';
-    if (lowerId.contains('dividivi')) return 'Dividivi';
     
-    // SOLAR - primero los más específicos
-    if (lowerId.contains('alcaparro grande')) return 'Alcaparro grande';
-    if (lowerId.contains('alcaparro')) return 'Alcaparro';
+    // SOLAR
+    if (lowerId.contains('alcaparro grande')) return 'Alcaparro enano';
     if (lowerId.contains('cajeto')) return 'Cajeto';
     if (lowerId.contains('espino')) return 'Espino';
     if (lowerId.contains('drago')) return 'Drago';
@@ -176,7 +175,6 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
     // HIDRO
     if (lowerId.contains('aliso')) return 'Aliso';
     if (lowerId.contains('cedrillo')) return 'Cedrillo';
-    if (lowerId.contains('cucharo')) return 'Cucharo';
     
     // MONTAÑA
     if (lowerId.contains('pino')) return 'Pino romerón';
@@ -190,11 +188,11 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
     if (lowerId.contains('sietecueros')) return 'Sietecueros';
     if (lowerId.contains('cedro')) return 'Cedro';
     
-    // PASTO (default)
+    // BASE
     if (lowerId.contains('pasto')) return 'Pasto';
     
-    // Si no hay match, usar el ID tal cual
-    return plantType;
+    // Default: Pasto
+    return 'Pasto';
   }
 
   Future<SpriteAnimation> _loadAnim(String file, int frames,) async {

@@ -102,6 +102,7 @@ class SunOverlay extends FlameGame with TapCallbacks {
       // addSun actualiza memoria; saveTree() persiste en SharedPreferences
       // Y exporta al archivo físico si tiene permiso (Regla de Oro).
       controller.addSun(reward);
+      controller.playSunGame(); // Actualizar cooldown
       await controller.saveTree();
     } catch (e) {
       debugPrint('[SunOverlay] Error al guardar: $e');

@@ -22,34 +22,97 @@ import '../models/tree_models.dart';
 class TreeStorageService {
   /// Clave SharedPreferences — coincide con localStorage del equipo web.
   static const String _treeKey = 'imaginatio_tree_data';
+  /// Clave SharedPreferences para recursos de Flutter (sol, agua, composta, fertilizante).
+  static const String _recursosFlutterKey = 'imaginatio_recursos_flutter';
 
   // ── Lectura ───────────────────────────────────────────────────────────────
 
   /// Carga el .tree desde SharedPreferences.
-  /// Retorna `null` si no existe ningún .tree guardado.
+  /// Combina los recursos del .tree con los recursos guardados en SharedPreferences
+  /// (sol, agua, composta, fertilizante) que Flutter mantiene separados de Unity.
   Future<TreeData?> loadTree() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_treeKey);
       if (raw == null || raw.isEmpty) return null;
-      return TreeData.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      
+      final treeData = TreeData.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      debugPrint('[TreeStorageService] loadTree .tree recursos: sol=${treeData.recursos.sol.cantidad} agua=${treeData.recursos.agua.cantidad} composta=${treeData.recursos.composta.cantidad} fertilizante=${treeData.recursos.fertilizante.cantidad}');
+      
+      // Combinar recursos de Flutter desde SharedPreferences
+      final recursosFlutter = await loadRecursosFlutter();
+      if (recursosFlutter != null) {
+        // Usar recursos de SharedPreferences (los más actualizados de Flutter)
+        debugPrint('[TreeStorageService] loadTree usando recursos de SharedPreferences');
+        return TreeData(
+          version: treeData.version,
+          usuario: treeData.usuario,
+          recursos: recursosFlutter,
+          plantas: treeData.plantas,
+          semillas: treeData.semillas,
+        );
+      }
+      
+      debugPrint('[TreeStorageService] loadTree sin recursos de SharedPreferences, usando .tree');
+      return treeData;
     } catch (e) {
       debugPrint('[TreeStorageService] Error al cargar .tree: $e');
       return null;
     }
   }
 
+  /// Carga los recursos de Flutter desde SharedPreferences.
+  /// Retorna null si no existen.
+  Future<TreeRecursos?> loadRecursosFlutter() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_recursosFlutterKey);
+      debugPrint('[TreeStorageService] loadRecursosFlutter raw: $raw');
+      if (raw == null || raw.isEmpty) return null;
+      final result = TreeRecursos.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      debugPrint('[TreeStorageService] loadRecursosFlutter result: sol=${result.sol.cantidad} agua=${result.agua.cantidad} composta=${result.composta.cantidad} fertilizante=${result.fertilizante.cantidad}');
+      return result;
+    } catch (e) {
+      debugPrint('[TreeStorageService] Error al cargar recursos Flutter: $e');
+      return null;
+    }
+  }
+
+  /// Guarda los recursos de Flutter en SharedPreferences (separado del .tree).
+  Future<void> saveRecursosFlutter(TreeRecursos recursos) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_recursosFlutterKey, jsonEncode(recursos.toJson()));
+      debugPrint(
+        '[TreeStorageService] Recursos Flutter guardados ✓ — '
+        'sol:${recursos.sol.cantidad} '
+        'agua:${recursos.agua.cantidad} '
+        'composta:${recursos.composta.cantidad} '
+        'fertilizante:${recursos.fertilizante.cantidad}',
+      );
+    } catch (e) {
+      debugPrint('[TreeStorageService] Error al guardar recursos Flutter: $e');
+      rethrow;
+    }
+  }
+
   // ── Escritura con merge (Flutter → .tree) ─────────────────────────────────
 
-  /// Persiste [flutterData] como .tree v2, preservando los campos 🔴 de
+/// Persiste [flutterData] como .tree v2, preservando los campos 🔴 de
   /// Unity que ya estaban guardados.
   ///
   /// Flujo:
-  ///   1. Lee el .tree existente para recuperar campos 🔴 de Unity.
-  ///   2. Hace merge: campos 🟢 de [flutterData] + campos 🔴 del existente.
-  ///   3. Persiste el resultado en SharedPreferences.
+  /// 1. Lee el .tree existente para recuperar campos 🔴 de Unity.
+  /// 2. Hace merge: campos 🟢 de [flutterData] + campos 🔴 del existente.
+  /// 3. Persiste el resultado en SharedPreferences.
   Future<void> saveTreeLocally({required TreeData flutterData}) async {
     try {
+      debugPrint('[TreeStorageService] saveTreeLocally input: sol=${flutterData.recursos.sol.cantidad} agua=${flutterData.recursos.agua.cantidad} composta=${flutterData.recursos.composta.cantidad} fertilizante=${flutterData.recursos.fertilizante.cantidad}');
+      
+      // Guardar recursos de Flutter en SharedPreferences (separado del .tree para Unity)
+      await saveRecursosFlutter(flutterData.recursos);
+
+      // Guardar .tree para Unity (sin los recursos de Flutter - se preservan del existente)
       final existing = await loadTree();
       final merged = _mergeFlutterIntoExisting(
         flutterData: flutterData,
@@ -65,7 +128,7 @@ class TreeStorageService {
         'agua:${merged.recursos.agua.cantidad} '
         'composta:${merged.recursos.composta.cantidad}',
       );
-    } catch (e) {
+} catch (e) {
       debugPrint('[TreeStorageService] Error al guardar .tree: $e');
       rethrow;
     }
@@ -166,9 +229,9 @@ class TreeStorageService {
     return TreeData(
       version: 2,
       usuario: mergedUsuario,
-      recursos: flutterData.recursos, // 🟢 Flutter es dueño
+      recursos: existing.recursos,
       plantas: mergedPlantas,
-      semillas: existing.semillas, // 🔴 Unity es dueño — preservar
+      semillas: existing.semillas,
     );
   }
 

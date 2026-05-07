@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../models/models.dart';
@@ -21,6 +22,21 @@ class PlantController extends ChangeNotifier {
   final TreeStorageService _treeStorage = TreeStorageService();
   final SharedTreeStorageService _sharedStorage = SharedTreeStorageService();
   static const _uuid = Uuid();
+
+  // ── Cooldowns de Minijuegos (persisten entre sesiones via SharedPreferences) ─
+  static const Duration sunGameCooldown = Duration(minutes: 10);
+  static const Duration waterGameCooldown = Duration(minutes: 10);
+  static const Duration compostGameCooldown = Duration(minutes: 3);
+
+  // Keys para SharedPreferences
+  static const String _cooldownSunKey = 'cooldown_sun';
+  static const String _cooldownWaterKey = 'cooldown_water';
+  static const String _cooldownCompostKey = 'cooldown_compost';
+
+  // Timestamps de último juego (cargados desde SharedPreferences)
+  DateTime? _lastSunGameTime;
+  DateTime? _lastWaterGameTime;
+  DateTime? _lastCompostGameTime;
 
   // ── Requisitos de evolución por tipo y etapa ─────────────────────────────────
   // Formato: {tipo: {fase: {sun: X, water: Y}}}
@@ -148,6 +164,7 @@ class PlantController extends ChangeNotifier {
         await applyPassiveDecay();
         await saveTree();
         _currentUser = _userModelFromTree(_currentTree!);
+        await _loadCooldowns();
         notifyListeners();
         return;
       }
@@ -161,6 +178,7 @@ class PlantController extends ChangeNotifier {
       _currentTree = _treeFromUserModel(_currentUser!);
       _ensureDefaultPlant();
       await saveTree();                  // persiste el tree con la planta pasto inicial
+      await _loadCooldowns();            // cargar cooldowns desde SharedPreferences
       notifyListeners();
     } catch (e) {
       debugPrint('[PlantController] Error al cargar datos: $e');
@@ -226,6 +244,9 @@ class PlantController extends ChangeNotifier {
     final plant = activePlant;
     if (plant == null) return;
 
+    // Si la planta está en fase ENT, no aplicar decay (ya está madura)
+    if (plant.estado.fase == 'ent') return;
+
     final now = DateTime.now().toUtc();
     final lastInteraction = await _authStorage.getPlantLastInteraction(plant.instanceId);
 
@@ -259,6 +280,7 @@ class PlantController extends ChangeNotifier {
       Duration(minutes: intervals * _decayIntervalMin),
     );
     await _authStorage.savePlantLastInteraction(plant.instanceId, newInteraction);
+    await saveTree(); // Persistir cambios del decay
 
     debugPrint('[PlantController] ⏳ Decay aplicado solo a planta activa: ${plant.id}');
   }
@@ -338,8 +360,12 @@ class PlantController extends ChangeNotifier {
     if (_currentTree == null || _currentTree!.plantas.isEmpty) return null;
     final plants = _currentTree!.plantas.where((p) => p.desbloqueada && p.estado.fase != 'muerto').toList();
     if (plants.isEmpty) return null;
-    final index = _activePlantIndex.clamp(0, plants.length - 1);
-    return plants[index];
+    // Validar que el índice sea válido para la lista filtrada
+    if (_activePlantIndex < 0 || _activePlantIndex >= plants.length) {
+      // Si el índice no es válido, usar la primera planta disponible
+      _activePlantIndex = 0;
+    }
+    return plants[_activePlantIndex];
   }
 
   /// Retorna la planta por índice directo (para inventario).
@@ -359,6 +385,18 @@ class PlantController extends ChangeNotifier {
     final targetPlant = plants[index];
     final realIndex = _currentTree!.plantas.indexOf(targetPlant);
     _activePlantIndex = realIndex;
+
+    // Si la planta está en fase ENT, poner recursos al máximo de la fase planta
+    if (targetPlant.estado.fase == 'ent') {
+      final plantType = _getPlantType(targetPlant.id);
+      final requirements = _evolutionRequirements[plantType];
+      final plantaMax = requirements?['planta'] ?? {'sun': 10, 'water': 8};
+
+      targetPlant.recursosAplicados.sol = plantaMax['sun'] ?? 10;
+      targetPlant.recursosAplicados.agua = plantaMax['water'] ?? 8;
+      targetPlant.recursosAplicados.fertilizante = 8;
+    }
+
     debugPrint('[PlantController] Planta activa establecida: índice $realIndex');
     notifyListeners();
   }
@@ -392,6 +430,7 @@ class PlantController extends ChangeNotifier {
     final plant = activePlant;
     if (plant != null) {
       plant.recursosAplicados.agua += amount;
+      _checkEvolution(plant);
       saveTree(); // Persistir cambios
     }
     notifyListeners();
@@ -473,7 +512,23 @@ class PlantController extends ChangeNotifier {
     if (plant == null) return null;
     
     final currentFase = plant.estado.fase;
-    final plantType = plant.id;
+    
+    // Si la planta está en fase ENT, usar los valores de fase "planta" (la máxima)
+    if (currentFase == 'ent') {
+      final plantType = _getPlantType(plant.id);
+      final requirements = _evolutionRequirements[plantType];
+      if (requirements == null) return null;
+      final faseReqs = requirements['planta'];
+      if (faseReqs == null) return null;
+      return {
+        'sol': faseReqs['sun'] ?? 10,
+        'agua': faseReqs['water'] ?? 10,
+        'fertilizante': _fertilizerRequirements['planta'] ?? 10,
+      };
+    }
+    
+    // Usar _getPlantType para obtener la key correcta (solar, hidro, etc.)
+    final plantType = _getPlantType(plant.id);
     final requirements = _evolutionRequirements[plantType];
     if (requirements == null) return null;
     
@@ -749,6 +804,7 @@ class PlantController extends ChangeNotifier {
         sol: TreeRecurso(cantidad: user.resources.sunAmount),
         agua: TreeRecurso(cantidad: user.resources.waterAmount),
         composta: TreeRecurso(cantidad: user.resources.compostAmount),
+        fertilizante: TreeRecurso(cantidad: user.resources.fertilizerAmount),
       ),
       plantas: plantas,
     );
@@ -768,7 +824,7 @@ class PlantController extends ChangeNotifier {
         sun: p.recursosAplicados.sol.toDouble(),
         water: p.recursosAplicados.agua.toDouble(),
         fertilizer: 0,
-        isDead: p.estado.salud == 'muerto',
+        isDead: p.estado.fase == 'muerto',
         lastInteraction: DateTime.now().toUtc(),
         sourcesNextState: SourcesNextState(sun: 0, water: 0, fertilizer: 0),
       );
@@ -820,5 +876,117 @@ class PlantController extends ChangeNotifier {
     } catch (_) {
       return PlantType.solar;
     }
+  }
+
+  // ── Cooldowns de Minijuegos ─────────────────────────────────────────────────
+
+  /// Carga los timestamps de cooldown desde SharedPreferences.
+  Future<void> _loadCooldowns() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now();
+
+      final sunStr = prefs.getString(_cooldownSunKey);
+      final waterStr = prefs.getString(_cooldownWaterKey);
+      final compostStr = prefs.getString(_cooldownCompostKey);
+
+      _lastSunGameTime = sunStr != null ? DateTime.tryParse(sunStr) : null;
+      _lastWaterGameTime = waterStr != null ? DateTime.tryParse(waterStr) : null;
+      _lastCompostGameTime = compostStr != null ? DateTime.tryParse(compostStr) : null;
+
+      debugPrint('[Cooldowns] Sun: $_lastSunGameTime, Water: $_lastWaterGameTime, Compost: $_lastCompostGameTime');
+    } catch (e) {
+      debugPrint('[Cooldowns] Error al cargar: $e');
+    }
+  }
+
+  /// Guarda los timestamps de cooldown en SharedPreferences.
+  Future<void> _saveCooldowns() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      if (_lastSunGameTime != null) {
+        await prefs.setString(_cooldownSunKey, _lastSunGameTime!.toIso8601String());
+      }
+      if (_lastWaterGameTime != null) {
+        await prefs.setString(_cooldownWaterKey, _lastWaterGameTime!.toIso8601String());
+      }
+      if (_lastCompostGameTime != null) {
+        await prefs.setString(_cooldownCompostKey, _lastCompostGameTime!.toIso8601String());
+      }
+    } catch (e) {
+      debugPrint('[Cooldowns] Error al guardar: $e');
+    }
+  }
+
+  /// Retorna true si el minijuego del Sol está disponible (pasó el cooldown).
+  bool canPlaySunGame() {
+    if (_lastSunGameTime == null) return true;
+    return DateTime.now().difference(_lastSunGameTime!) >= sunGameCooldown;
+  }
+
+  /// Retorna true si el minijuego del Agua está disponible (pasó el cooldown).
+  bool canPlayWaterGame() {
+    if (_lastWaterGameTime == null) return true;
+    return DateTime.now().difference(_lastWaterGameTime!) >= waterGameCooldown;
+  }
+
+  /// Retorna true si el minijuego de Composta está disponible (pasó el cooldown).
+  bool canPlayCompostGame() {
+    if (_lastCompostGameTime == null) return true;
+    return DateTime.now().difference(_lastCompostGameTime!) >= compostGameCooldown;
+  }
+
+  /// Retorna el tiempo restante de cooldown del Sol, o null si está disponible.
+  Duration? getSunGameRemainingCooldown() {
+    if (_lastSunGameTime == null) return null;
+    final elapsed = DateTime.now().difference(_lastSunGameTime!);
+    final remaining = sunGameCooldown - elapsed;
+    return remaining.isNegative ? null : remaining;
+  }
+
+  /// Retorna el tiempo restante de cooldown del Agua, o null si está disponible.
+  Duration? getWaterGameRemainingCooldown() {
+    if (_lastWaterGameTime == null) return null;
+    final elapsed = DateTime.now().difference(_lastWaterGameTime!);
+    final remaining = waterGameCooldown - elapsed;
+    return remaining.isNegative ? null : remaining;
+  }
+
+  /// Retorna el tiempo restante de cooldown de Composta, o null si está disponible.
+  Duration? getCompostGameRemainingCooldown() {
+    if (_lastCompostGameTime == null) return null;
+    final elapsed = DateTime.now().difference(_lastCompostGameTime!);
+    final remaining = compostGameCooldown - elapsed;
+    return remaining.isNegative ? null : remaining;
+  }
+
+  /// Registra que el usuario completó el minijuego del Sol y guarda en SharedPreferences.
+  void playSunGame() {
+    _lastSunGameTime = DateTime.now();
+    _saveCooldowns();
+    notifyListeners();
+  }
+
+  /// Registra que el usuario completó el minijuego del Agua y guarda en SharedPreferences.
+  void playWaterGame() {
+    _lastWaterGameTime = DateTime.now();
+    _saveCooldowns();
+    notifyListeners();
+  }
+
+  /// Registra que el usuario completó el minijuego de Composta y guarda en SharedPreferences.
+  void playCompostGame() {
+    _lastCompostGameTime = DateTime.now();
+    _saveCooldowns();
+    notifyListeners();
+  }
+
+  /// Formatea la duración restante para mostrar al usuario (ej: "9:32" o "Listo").
+  String formatRemainingCooldown(Duration? duration) {
+    if (duration == null) return 'Listo';
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 }
