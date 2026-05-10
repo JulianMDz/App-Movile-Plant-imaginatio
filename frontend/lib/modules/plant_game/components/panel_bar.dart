@@ -97,21 +97,29 @@ class PanelLayout extends PositionComponent {
   }
 
   void _syncFromController() {
+    debugPrint('[PanelBar] 🔔 _syncFromController appelé (listener activado)');
     try {
       final ctrl    = Provider.of<PlantController>(context, listen: false);
       final applied = ctrl.activePlantResources;
+      debugPrint('[PanelBar] 📊 Recursos obtenidos del controller: sol=${applied.sol}, agua=${applied.agua}, fert=${applied.fertilizante}');
 
       // Obtener máximos según tipo y fase de la planta activa
       final maxReqs = ctrl.getCurrentPhaseRequirements();
       final maxSol = (maxReqs?['sol'] ?? 10).toDouble();
       final maxAgua = (maxReqs?['agua'] ?? 10).toDouble();
       final maxFert = (maxReqs?['fertilizante'] ?? 10).toDouble();
+      debugPrint('[PanelBar] 📈 Máximos de fase: sol=$maxSol, agua=$maxAgua, fert=$maxFert');
 
       // Calcular % de llenado (barra siempre tiene tamaño fijo de _barW)
       _barraSol.progress = (applied.sol / maxSol).clamp(0.0, 1.0);
       _barraAgua.progress = (applied.agua / maxAgua).clamp(0.0, 1.0);
       _barraComposta.progress = (applied.fertilizante / maxFert).clamp(0.0, 1.0);
-    } catch (_) {}
+      
+      debugPrint('[PanelBar] 📶 Progreso actualizado: sol=${_barraSol.progress.toStringAsFixed(2)}, agua=${_barraAgua.progress.toStringAsFixed(2)}, fert=${_barraComposta.progress.toStringAsFixed(2)}');
+      debugPrint('[PanelBar] ℹ️ El game loop re-renderizará automáticamente');
+    } catch (e) {
+      debugPrint('[PanelBar] ❌ Error en syncFromController: $e');
+    }
   }
 }
 

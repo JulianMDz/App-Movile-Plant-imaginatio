@@ -173,6 +173,14 @@ class PlantController extends ChangeNotifier {
       // 1. Intentar cargar .tree v2 directamente
       _currentTree = await _treeStorage.loadTree();
 
+      // Bug 3: Debug para ver el estado de las plantas al cargar
+      if (_currentTree != null) {
+        final plantasInfo = _currentTree!.plantas.map((p) => '${p.id}:fase=${p.estado.fase}').join(', ');
+        debugPrint('[PlantController] 📋 Plantas cargadas desde .tree: $plantasInfo');
+      } else {
+        debugPrint('[PlantController] 📋 No se encontró .tree, se creará nuevo');
+      }
+
       if (_currentTree != null) {
         _ensureDefaultPlant();
         await applyPassiveDecay();
@@ -215,15 +223,17 @@ class PlantController extends ChangeNotifier {
 
     for (int i = 0; i < plantsToCreate.length; i++) {
       final (id, fase) = plantsToCreate[i];
+      final instanceId = '${_uuid.v4()}_$i';
       final plant = TreePlanta(
         id: id,
-        instanceId: '${_uuid.v4()}_$i',
+        instanceId: instanceId,
         subid: id,
         desbloqueada: true,
         estado: TreeEstado(fase: fase),
         recursosAplicados: TreeRecursosAplicados(sol: 3, agua: 3, fertilizante: 1),
       );
       _currentTree!.plantas.add(plant);
+      _authStorage.savePlantLastInteraction(instanceId, DateTime.now().toUtc());
     }
     debugPrint('[PlantController] 🌱 ${plantsToCreate.length} plantas creadas para testing de selección');
   }
@@ -243,7 +253,8 @@ class PlantController extends ChangeNotifier {
   ///   • Plantas no activas: no se les aplica decay.
   ///
   /// Se llama al cargar la sesión y al importar datos de Unity.
-  Future<void> applyPassiveDecay() async {
+  /// [fakeNow]: parámetro opcional para testing/debug - simula que el tiempo actual es diferente.
+  Future<void> applyPassiveDecay({DateTime? fakeNow}) async {
     if (_currentTree == null) return;
 
     final plant = activePlant;
@@ -252,18 +263,32 @@ class PlantController extends ChangeNotifier {
     // Si la planta está en fase ENT, no aplicar decay (ya está madura)
     if (plant.estado.fase == 'ent') return;
 
-    final now = DateTime.now().toUtc();
+    final now = fakeNow ?? DateTime.now().toUtc();
+    debugPrint('[Decay] 🔧 Usando tiempo: ${now.toIso8601String()} (fakeNow: ${fakeNow != null})');
     final lastInteraction = await _authStorage.getPlantLastInteraction(plant.instanceId);
+    debugPrint('[Decay] 📅 lastInteraction actual: ${lastInteraction.toIso8601String()}');
 
     final minutesPassed = now.difference(lastInteraction).inMinutes;
-    if (minutesPassed < _decayIntervalMin) return;
+    debugPrint('[Decay] ⏱️ Minutos desde última interacción: $minutesPassed (intervalo=10min)');
+
+    if (minutesPassed < _decayIntervalMin) {
+      debugPrint('[Decay] ⏭️ No se aplica decay: minutos ($minutesPassed) < intervalo (${_decayIntervalMin}min)');
+      return;
+    }
 
     final intervals = minutesPassed ~/ _decayIntervalMin;
+    debugPrint('[Decay] 🔢 Intervalos de decay a aplicar: $intervals');
+
+    final solAntes = plant.recursosAplicados.sol;
+    final aguaAntes = plant.recursosAplicados.agua;
+    debugPrint('[Decay] 🔴 Recursos ANTES del decay: sol=$solAntes, agua=$aguaAntes');
 
     plant.recursosAplicados.agua =
         (plant.recursosAplicados.agua - intervals).clamp(0, 9999);
     plant.recursosAplicados.sol =
         (plant.recursosAplicados.sol - intervals).clamp(0, 9999);
+
+    debugPrint('[Decay] 🟢 Recursos DESPUÉS del decay: sol=${plant.recursosAplicados.sol}, agua=${plant.recursosAplicados.agua}');
 
     if (plant.recursosAplicados.agua <= 0 || plant.recursosAplicados.sol <= 0) {
       plant.estado.fase = 'muerto';
@@ -281,11 +306,13 @@ class PlantController extends ChangeNotifier {
       }
     }
 
-    final newInteraction = lastInteraction.add(
-      Duration(minutes: intervals * _decayIntervalMin),
-    );
+    // Actualizar lastInteraction al tiempo actual (fakeNow si está en modo debug)
+    // Esto asegura que el próximo decay calcule correctamente los minutos transcurridos
+    final newInteraction = fakeNow ?? DateTime.now().toUtc();
+    debugPrint('[Decay] 📅 Actualizando lastInteraction a: ${newInteraction.toIso8601String()}');
     await _authStorage.savePlantLastInteraction(plant.instanceId, newInteraction);
     await saveTree(); // Persistir cambios del decay
+    notifyListeners(); // Actualizar UI (barras de recursos + animaciones de urgencia)
 
     debugPrint('[PlantController] ⏳ Decay aplicado solo a planta activa: ${plant.id}');
   }
@@ -382,7 +409,7 @@ class PlantController extends ChangeNotifier {
   }
 
   /// Establece la planta activa por índice.
-  void setActivePlant(int index) {
+  Future<void> setActivePlant(int index) async {
     final plants = _currentTree?.plantas.where((p) => p.desbloqueada && p.estado.fase != 'muerto').toList() ?? [];
     if (plants.isEmpty || index < 0 || index >= plants.length) return;
 
@@ -409,7 +436,7 @@ class PlantController extends ChangeNotifier {
   /// Gasta [amount] unidades de sol del inventario.
   /// Retorna `true` si había stock (la animación se muestra).
   /// Si hay una planta activa viva, también aplica los recursos a ella.
-  bool spendSun({int amount = 1}) {
+  Future<bool> spendSun({int amount = 1}) async {
     if (_currentTree == null) return false;
     if (_currentTree!.recursos.sol.cantidad < amount) return false;
     // Descontar inventario
@@ -420,6 +447,8 @@ class PlantController extends ChangeNotifier {
     if (plant != null) {
       plant.recursosAplicados.sol += amount;
       _checkEvolution(plant);
+      // Actualizar lastInteraction para que no aplique decay inmediatamente
+      await _authStorage.savePlantLastInteraction(plant.instanceId, DateTime.now().toUtc());
       saveTree(); // Persistir cambios
     }
     notifyListeners();
@@ -427,7 +456,7 @@ class PlantController extends ChangeNotifier {
   }
 
   /// Gasta [amount] unidades de agua del inventario.
-  bool spendWater({int amount = 1}) {
+  Future<bool> spendWater({int amount = 1}) async {
     if (_currentTree == null) return false;
     if (_currentTree!.recursos.agua.cantidad < amount) return false;
     _currentTree!.recursos.agua.cantidad -= amount;
@@ -436,6 +465,7 @@ class PlantController extends ChangeNotifier {
     if (plant != null) {
       plant.recursosAplicados.agua += amount;
       _checkEvolution(plant);
+      await _authStorage.savePlantLastInteraction(plant.instanceId, DateTime.now().toUtc());
       saveTree(); // Persistir cambios
     }
     notifyListeners();
@@ -444,7 +474,7 @@ class PlantController extends ChangeNotifier {
 
   /// Gasta [amount] unidades de fertilizante del inventario.
   /// Añade [amount] fertilizante a la planta activa.
-  bool spendCompost({int amount = 1}) {
+  Future<bool> spendCompost({int amount = 1}) async {
     if (_currentTree == null) return false;
     if (_currentTree!.recursos.fertilizante.cantidad < amount) return false;
     _currentTree!.recursos.fertilizante.cantidad -= amount;
@@ -453,6 +483,8 @@ class PlantController extends ChangeNotifier {
     if (plant != null) {
       plant.recursosAplicados.fertilizante += amount;
       _checkEvolution(plant);
+      // Actualizar lastInteraction para que no aplique decay inmediatamente
+      await _authStorage.savePlantLastInteraction(plant.instanceId, DateTime.now().toUtc());
       saveTree(); // Persistir cambios
     }
     notifyListeners();
@@ -702,15 +734,59 @@ class PlantController extends ChangeNotifier {
     return buffer.toString();
   }
 
+  /// Flag para evitar múltiples ejecuciones rápidas del debugAdvanceTime
+  bool _isDebugAdvancing = false;
+
+  /// Minutos acumulados de debug (para que múltiples clicks de "T" acumulen tiempo)
+  static int _debugTimeMinutesAccumulated = 0;
+
+  /// Resetea el tiempo acumulado de debug (para正常使用)
+  void resetDebugTime() {
+    _debugTimeMinutesAccumulated = 0;
+    debugPrint('[Debug] 🔄 Tiempo acumulado de debug reseteado');
+  }
+
   /// Avanza el tiempo de todas las plantas por [minutes] minutos (para debug).
+  /// También avanza los cooldowns de los minijuegos y aplica el decay.
   Future<void> debugAdvanceTime(int minutes) async {
-    final plants = _currentTree?.plantas ?? [];
-    for (final plant in plants) {
-      final lastInteraction = await _authStorage.getPlantLastInteraction(plant.instanceId);
-      final newTime = lastInteraction.add(Duration(minutes: minutes));
-      await _authStorage.savePlantLastInteraction(plant.instanceId, newTime);
+    if (_isDebugAdvancing) return;
+    _isDebugAdvancing = true;
+    
+    try {
+      // Acumular minutos de debug para que múltiples clicks sumen
+      _debugTimeMinutesAccumulated += minutes;
+      debugPrint('[Debug] ⏱️ Minutos acumulados de debug: $_debugTimeMinutesAccumulated');
+      
+      // 1. Retroceder cooldowns de minijuegos (restar tiempo para poder jugar antes)
+      if (_lastSunGameTime != null) {
+        _lastSunGameTime = _lastSunGameTime!.subtract(Duration(minutes: minutes));
+      }
+      if (_lastWaterGameTime != null) {
+        _lastWaterGameTime = _lastWaterGameTime!.subtract(Duration(minutes: minutes));
+      }
+      if (_lastCompostGameTime != null) {
+        _lastCompostGameTime = _lastCompostGameTime!.subtract(Duration(minutes: minutes));
+      }
+      await _saveCooldowns();
+      
+      // 2. Aplicar decay usando fakeNow para simular tiempo avanzado
+      final plantAntes = activePlant;
+      if (plantAntes != null) {
+        debugPrint('[Debug] 📊 Recursos ANTES de applyPassiveDecay: sol=${plantAntes.recursosAplicados.sol}, agua=${plantAntes.recursosAplicados.agua}');
+      }
+      // Simular que pasaron los minutos acumulados de debug
+      final fakeNow = DateTime.now().toUtc().add(Duration(minutes: _debugTimeMinutesAccumulated));
+      debugPrint('[Debug] ⏱️ fakeNow = now + $_debugTimeMinutesAccumulated minutos');
+      await applyPassiveDecay(fakeNow: fakeNow);
+      final plantDepois = activePlant;
+      if (plantDepois != null) {
+        debugPrint('[Debug] 📊 Recursos DESPUÉS de applyPassiveDecay: sol=${plantDepois.recursosAplicados.sol}, agua=${plantDepois.recursosAplicados.agua}');
+      }
+      
+      debugPrint('[Debug] ⏱️ Tiempo avanzado $minutes minutos + decay aplicado + cooldowns reseteados');
+    } finally {
+      _isDebugAdvancing = false;
     }
-    debugPrint('[Debug] Tiempo avanzadas $minutes minutos');
   }
 
   /// Persiste el .tree actual en SharedPreferences aplicando la lógica de

@@ -1,7 +1,11 @@
 import 'dart:convert';
+import 'dart:ui';
 
+import 'package:flame/components.dart';
+import 'package:flame/events.dart';
 import 'package:flame/flame.dart';
 import 'package:flame/layout.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/modules/plant_game/components/Animation_compost.dart';
 import 'package:frontend/modules/plant_game/components/Animation_critical.dart';
@@ -83,6 +87,16 @@ class PlantGameScreen extends FlameGame {
     await AudioManager.musicaPrincipal();
 
     add(Background());
+
+    // Botón de debug para avanzar tiempo (solo visible en modo debug)
+    final debugTimeButton = _DebugTimeButton(
+      gameRef: this,
+      onAdvance: (minutes) async {
+        final controller = Provider.of<PlantController>(context, listen: false);
+        await controller.debugAdvanceTime(minutes);
+      },
+    )..priority = 100;
+    add(debugTimeButton);
 
     final helpButton = Button_help(onPressed: () { });
 
@@ -332,7 +346,7 @@ class PlantGameScreen extends FlameGame {
       final double scaleFactor = size.y / 1080.0;
       
       // Aplicar estrictamente la escala original de la fase (sin modificar)
-      _plant.scale = _plant.stageScale; 
+      // La escala se actualiza en _onControllerAnimationChange según el estado 
       
 // Posicionar en el 78% de la pantalla (suelo) + el offset visual de la fase escalado
       _plant.position = Vector2(
@@ -345,11 +359,30 @@ class PlantGameScreen extends FlameGame {
   }
 
   void _onControllerAnimationChange() {
+    debugPrint('[PlantScreen] 🔔 _onControllerAnimationChange ejecutado (notifyListeners llamado)');
     try {
       if (context == null) return;
       final controller = Provider.of<PlantController>(context, listen: false);
-    final plantType = controller.activePlant?.id ?? 'pasto';
-    final fase = controller.activePlant?.estado.fase ?? 'arbusto';
+    final plant = controller.activePlant;
+    final plantType = plant?.id ?? 'pasto';
+    final fase = plant?.estado.fase ?? 'arbusto';
+    final sol = plant?.recursosAplicados.sol ?? 0;
+    final agua = plant?.recursosAplicados.agua ?? 0;
+    final fert = plant?.recursosAplicados.fertilizante ?? 0;
+    debugPrint('[PlantScreen] 📊 Estado actual: planta=$plantType, fase=$fase, sol=$sol, agua=$agua, fert=$fert');
+
+    // Bug 3: Debug adicional para verificar fase al cargar
+    if (fase == 'muerto') {
+      debugPrint('[PlantScreen] 💀 La planta está en estado de MUERTE');
+    }
+
+    // Bug 1: Reducir escala un 5% cuando la planta está en estado de muerte
+    if (fase == 'muerto') {
+      _plant.scale = _plant.stageScale * 0.95;
+      debugPrint('[PlantScreen] 💀 Planta en muerte - escala reducida 5%');
+    } else {
+      _plant.scale = _plant.stageScale;
+    }
     
     // Detectar cambio de planta activa O cambio de fase (evolución/muerte)
     if (plantType != _lastPlantType || fase != _lastPlantFase) {
@@ -379,19 +412,30 @@ class PlantGameScreen extends FlameGame {
       debugPrint('[PlantScreen] 🌱 Animación de evolución reproducida');
     }
 
-    if (controller.showDeathAnimation) {
+    // Bug 2: Eliminar animaciones de estado anteriores antes de agregar nuevas
+    final existingStateAnims = children.where((c) => 
+      c is Animation_critical || c is Animation_danger || c is Animation_tombstone
+    ).toList();
+    for (final anim in existingStateAnims) {
+      anim.removeFromParent();
+    }
+    debugPrint('[PlantScreen] 🗑️ Eliminadas ${existingStateAnims.length} animaciones de estado anteriores');
+
+    // Bug 2: Lógica de prioridad - solo mostrar la animación correspondiente al estado actual
+    // PRIORIDAD 1: MUERTO (sol <= 0 O agua <= 0 O fase == 'muerto')
+    if (fase == 'muerto' || sol <= 0 || agua <= 0) {
       final anim = Animation_tombstone(
         plantType,
         Vector2(size.x / 2, size.y / 2),
       )
         ..anchor = Anchor.center
-        ..removeOnFinish = true;
+        ..removeOnFinish = false; // Se mantiene siempre en muerte
       add(anim);
       controller.clearAnimationFlags();
-      debugPrint('[PlantScreen] 💀 Animación de muerte reproducida');
+      debugPrint('[PlantScreen] 💀 Animación de MUERTE mostrada (fase=$fase, sol=$sol, agua=$agua)');
     }
-
-    if (controller.showCriticalAnimation) {
+    // PRIORIDAD 2: CRÍTICO (sol <= 2 O agua <= 2)
+    else if (sol <= 2 || agua <= 2) {
       final anim = Animation_critical(
         plantType,
         Vector2(size.x / 2, size.y * 0.3),
@@ -400,9 +444,10 @@ class PlantGameScreen extends FlameGame {
         ..removeOnFinish = true;
       add(anim);
       controller.clearAnimationFlags();
+      debugPrint('[PlantScreen] ⚠️ Animación de CRÍTICO mostrada (sol=$sol, agua=$agua)');
     }
-
-    if (controller.showDangerAnimation) {
+    // PRIORIDAD 3: PELIGRO (sol <= 4 O agua <= 4, pero no crítico)
+    else if (sol <= 4 || agua <= 4) {
       final anim = Animation_danger(
         plantType,
         Vector2(size.x / 2, size.y * 0.3),
@@ -411,7 +456,14 @@ class PlantGameScreen extends FlameGame {
         ..removeOnFinish = true;
       add(anim);
       controller.clearAnimationFlags();
-      }
+      debugPrint('[PlantScreen] ⚠️ Animación de PELIGRO mostrada (sol=$sol, agua=$agua)');
+    }
+    // Estado normal: no hay animación (recursos OK)
+    else {
+      debugPrint('[PlantScreen] ✅ Estado normal - sin animación (sol=$sol, agua=$agua)');
+    }
+
+    controller.clearAnimationFlags();
     } catch (e) {
       // Silenciar errores de contexto - el widget se está disposeando
     }
@@ -421,5 +473,55 @@ class PlantGameScreen extends FlameGame {
     debugPrint('[$gameName Game] En cooldown - tiempo restante: $remainingTime');
     // TODO: Mostrar snackbar visual en Flutter
     // Por ahora solo debug log - se puede agregar UI después
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Botón de debug para avanzar el tiempo (solo visible en modo debug)
+// ─────────────────────────────────────────────────────────────────────────────
+class _DebugTimeButton extends PositionComponent with TapCallbacks {
+  final FlameGame gameRef;
+  final Function(int minutes) onAdvance;
+  
+  _DebugTimeButton({required this.gameRef, required this.onAdvance});
+
+  @override
+  Future<void> onLoad() async {
+    position = Vector2(gameRef.size.x - 50, 50);
+    size = Vector2(40, 40);
+  }
+
+  @override
+  void render(Canvas canvas) {
+    // Dibujar botón de debug: círculo rojo semitransparente con "T"
+    canvas.drawCircle(
+      Offset(size.x / 2, size.y / 2),
+      size.x / 2,
+      Paint()..color = const Color(0x80FF0000),
+    );
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'T',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset((size.x - textPainter.width) / 2, (size.y - textPainter.height) / 2),
+    );
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    // Avanza 10 minutos + aplica decay + actualiza cooldowns
+    onAdvance(10);
+    debugPrint('[Debug] ⏱️ Tiempo avanzado 10 minutos por botón debug');
+    event.continuePropagation = false;
   }
 }

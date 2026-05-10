@@ -102,9 +102,9 @@ class Button_resource_sun extends SpriteButtonComponent with HasGameRef {
     _countText.text = _stockText();
   }
 
-  void _onTap() {
+  void _onTap() async {
     final controller = Provider.of<PlantController>(context, listen: false);
-    final success = controller.spendSun();
+    final success = await controller.spendSun();
     if (!success) return; // sin stock — no hacer nada
 
     // Obtener tipo de planta activa para la animación

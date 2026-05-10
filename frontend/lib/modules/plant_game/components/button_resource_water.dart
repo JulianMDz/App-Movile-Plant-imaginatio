@@ -92,9 +92,9 @@ class Button_resource_water extends SpriteButtonComponent with HasGameRef {
     _countText.text = _stockText();
   }
 
-  void _onTap() {
+  void _onTap() async {
     final controller = Provider.of<PlantController>(context, listen: false);
-    final success = controller.spendWater();
+    final success = await controller.spendWater();
     if (!success) return;
 
     final plantType = controller.activePlant?.id ?? 'pasto';

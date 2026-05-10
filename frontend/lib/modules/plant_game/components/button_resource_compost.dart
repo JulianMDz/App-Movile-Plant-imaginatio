@@ -90,10 +90,10 @@ class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
     _countText.text = _stockText();
   }
 
-  void _onTap() {
+  void _onTap() async {
     final controller = Provider.of<PlantController>(context, listen: false);
     // Gastar 1 fertilizante del inventario
-    final success = controller.spendCompost(amount: 1);
+    final success = await controller.spendCompost(amount: 1);
     if (!success) return;
 
     final plantType = controller.activePlant?.id ?? 'pasto';
