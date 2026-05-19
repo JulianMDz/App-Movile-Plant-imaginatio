@@ -57,6 +57,8 @@ class PlantGameScreen extends FlameGame {
 
   late PanelLayout _panelBar;
   late RowComponent _rowTop;
+  late Panel_title _panelTitle;
+  late Panel_resource_info _panelInfo;
   late ColumnComponent _layoutCenter;
   late PlantComponent _plant;
   late ColumnComponent _columnRight;
@@ -100,7 +102,9 @@ class PlantGameScreen extends FlameGame {
 
     final helpButton = Button_help(onPressed: () { });
 
-    final panelTitle = Panel_title();
+    String pType = 'Pasto';
+
+    _panelTitle = Panel_title(pType.toUpperCase());
 
     final inventaryButton = Button_inventory(
       onPressed: () {
@@ -116,7 +120,7 @@ class PlantGameScreen extends FlameGame {
     });
 
 
-    final panelInfo = Panel_resource_info();
+    _panelInfo = Panel_resource_info('Estado normal');
 
     _panelBar = PanelLayout(context: context)
       ..anchor = Anchor.centerLeft
@@ -189,11 +193,11 @@ class PlantGameScreen extends FlameGame {
         ),
         PaddingComponent(
           padding: EdgeInsets.only(right: 10),
-          child: panelTitle,
+          child: _panelTitle,
         ),
         PaddingComponent(
           padding: EdgeInsets.only(right: 30),
-          child: panelInfo,
+          child: _panelInfo,
         ),
         PaddingComponent(
           padding: EdgeInsets.only(right: 10),
@@ -265,8 +269,6 @@ class PlantGameScreen extends FlameGame {
     add(compostCooldown);
 
     add(_panelBar);
-
-    String pType = 'Pasto';
     int pStage = 2; // bush
     if (controller.activePlant != null) {
       pType = controller.activePlant!.id;
@@ -280,7 +282,7 @@ class PlantGameScreen extends FlameGame {
     _plant = PlantComponent(
       pType,
       pStage,
-      Vector2(size.x / 2, size.y / 2),
+      Vector2(size.x, size.y),
     )
     ..anchor = Anchor.center;
     add(_plant);
@@ -338,7 +340,7 @@ class PlantGameScreen extends FlameGame {
   }
 
   void _applyLayout(Vector2 size) {
-      _panelBar.position = Vector2(8 + size.x * 0.05, size.y / 2);
+      _panelBar.position = Vector2(50 + size.x * 0.05, size.y / 2);
       _rowTop.position = Vector2(size.x / 2, 30);
       _layoutCenter.position = Vector2(size.x / 2, size.y / 2 + 10);
       
@@ -354,7 +356,7 @@ class PlantGameScreen extends FlameGame {
         size.y / 2 + (_plant.stageOffset.y * scaleFactor),
       );
       
-      _columnRight.position = Vector2(size.x - 8, size.y * 0.48);
+      _columnRight.position = Vector2(size.x -70, size.y * 0.48);
       _rowDown.position = Vector2(size.x / 2, size.y - 10);
   }
 
@@ -369,6 +371,37 @@ class PlantGameScreen extends FlameGame {
     final sol = plant?.recursosAplicados.sol ?? 0;
     final agua = plant?.recursosAplicados.agua ?? 0;
     final fert = plant?.recursosAplicados.fertilizante ?? 0;
+    String statusMessage = 'Estado normal';
+
+      // MUERTO
+      if (fase == 'muerto' || sol <= 0 || agua <= 0) {
+        statusMessage = 'La planta murio';
+      }
+
+      // CRITICO
+      else if (sol <= 2 || agua <= 2) {
+        statusMessage = 'Estado critico';
+      }
+
+      // PELIGRO
+      else if (sol <= 4 || agua <= 4) {
+        statusMessage = 'Necesita recursos';
+      }
+
+      // FERTILIZANTE BAJO
+      else if (fert <= 1) {
+        statusMessage = 'Necesita composta';
+      }
+
+      // PERFECTO
+      else if (sol >= 8 && agua >= 8 && fert >= 5) {
+        statusMessage = 'La planta esta feliz';
+      }
+
+      _panelInfo.setMessage(statusMessage);
+
+
+
     debugPrint('[PlantScreen] 📊 Estado actual: planta=$plantType, fase=$fase, sol=$sol, agua=$agua, fert=$fert');
 
     // Bug 3: Debug adicional para verificar fase al cargar
@@ -388,6 +421,7 @@ class PlantGameScreen extends FlameGame {
     if (plantType != _lastPlantType || fase != _lastPlantFase) {
       _lastPlantType = plantType;
       _lastPlantFase = fase;
+      _panelTitle.setTitle(plantType.toUpperCase());
       
       // Determinar el stage según la fase
       int newStage = 2;
@@ -426,7 +460,7 @@ class PlantGameScreen extends FlameGame {
     if (fase == 'muerto' || sol <= 0 || agua <= 0) {
       final anim = Animation_tombstone(
         plantType,
-        Vector2(size.x / 2, size.y / 2),
+        Vector2(size.x / 2, size.y / 2+70),
       )
         ..anchor = Anchor.center
         ..removeOnFinish = false; // Se mantiene siempre en muerte
@@ -524,4 +558,6 @@ class _DebugTimeButton extends PositionComponent with TapCallbacks {
     debugPrint('[Debug] ⏱️ Tiempo avanzado 10 minutos por botón debug');
     event.continuePropagation = false;
   }
+
 }
+

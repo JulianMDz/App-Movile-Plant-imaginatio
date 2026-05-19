@@ -24,9 +24,9 @@ class PlantController extends ChangeNotifier {
   static const _uuid = Uuid();
 
   // ── Cooldowns de Minijuegos (persisten entre sesiones via SharedPreferences) ─
-  static const Duration sunGameCooldown = Duration(minutes: 10);
-  static const Duration waterGameCooldown = Duration(minutes: 10);
-  static const Duration compostGameCooldown = Duration(minutes: 3);
+  static const Duration sunGameCooldown = Duration(seconds: 10);
+  static const Duration waterGameCooldown = Duration(seconds: 10);
+  static const Duration compostGameCooldown = Duration(seconds: 3);
 
   // Keys para SharedPreferences
   static const String _cooldownSunKey = 'cooldown_sun';

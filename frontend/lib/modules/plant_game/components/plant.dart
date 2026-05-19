@@ -23,6 +23,7 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   Future<void> onLoad() async {
     try {
       debugPrint('[PlantComponent] 🌿 plantType: $plantType -> folderName: $folderName');
+      scale = stageScale;
       final stageEnum = _intToStage(initialStage);
       final animation = await _loadStageAnimation(stageEnum);
       animations = {stageEnum: animation};
@@ -76,7 +77,7 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   Vector2 get stageScale {
     switch (_activeStage) {
       case PlantStage.seed:
-        return Vector2.all(0.3);
+        return Vector2.all(0.4);
       case PlantStage.bush:
         return Vector2.all(0.5);
       case PlantStage.tree:

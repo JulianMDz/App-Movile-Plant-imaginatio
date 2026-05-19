@@ -2,7 +2,12 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
 class Panel_resource_info extends SpriteComponent  {
-     late TextComponent textComp;
+    late TextComponent textComp;
+
+    String info;
+
+    Panel_resource_info(this.info);
+
   @override
   Future<void> onLoad() async {
     // Cargar la imagen
@@ -11,7 +16,7 @@ class Panel_resource_info extends SpriteComponent  {
     size = sprite!.srcSize/3.5;    
 
     textComp = TextComponent(
-      text: 'Necesito algo...',
+      text: info,
       textRenderer: TextPaint(
         style: const TextStyle(
           color: Colors.white, 
@@ -25,5 +30,9 @@ class Panel_resource_info extends SpriteComponent  {
       ..position = size / 2;
 
     add(textComp);
+  }
+
+  void setMessage(String msg) {
+    textComp.text = msg;
   }
 }
