@@ -35,7 +35,19 @@ class FilterPanelComponent extends PositionComponent {
       ..size = Vector2(screenW - _marginSide * 2, _collapsedH)
       ..position = Vector2(_marginSide, 0)); // desplazado por el margen
 
-    _drawer = FilterDrawer(gameRef: gameRef)
+    _drawer = FilterDrawer(
+      gameRef: gameRef,
+      onCategorySelected: (cat) {
+        try { (gameRef as dynamic).applyCategoryFilter(cat); } catch (_) {}
+      },
+      onStageSelected: (stage) {
+        try { (gameRef as dynamic).applyStageFilter(stage); } catch (_) {}
+      },
+      onUrgencySelected: (urgency) {
+        try { (gameRef as dynamic).applyUrgencyFilter(urgency); } catch (_) {}
+        _toggleDrawer();
+      },
+    )
       ..position = Vector2(0, screenH)
       ..size = Vector2(screenW, 0);
     gameRef.add(_drawer);
