@@ -1011,8 +1011,13 @@ class PlantController extends ChangeNotifier {
 
         // FIX 2b: DESPUÉS de sync, restaurar planta activa por instanceId
         if (previousActivePlantId != null && previousActivePlantId.isNotEmpty) {
-          final previousPlant = _currentTree!.plantas
-              .firstWhereOrNull((p) => p.instanceId == previousActivePlantId);
+          TreePlanta? previousPlant;
+          try {
+            previousPlant = _currentTree!.plantas
+                .firstWhere((p) => p.instanceId == previousActivePlantId);
+          } catch (_) {
+            previousPlant = null; // No encontrado
+          }
           
           if (previousPlant != null) {
             // Planta activa anterior aún existe; restaurar

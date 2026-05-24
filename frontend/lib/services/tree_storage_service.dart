@@ -374,8 +374,19 @@ class TreeStorageService {
     final cleanedFlutterPlantas = flutterPlantas.map((p) {
       if (p.instanceId.isEmpty) {
         final newId = uuid.v4();
-        p.instanceId = newId;
         debugPrint('[Merge] 🔧 FIX 1: Generated instanceId for old plant ${p.id}: $newId');
+        // Crear copia de la planta con el nuevo instanceId
+        return TreePlanta(
+          id: p.id,
+          instanceId: newId, // Nueva ID
+          subid: p.subid,
+          desbloqueada: p.desbloqueada,
+          estado: p.estado,
+          recursosAplicados: p.recursosAplicados,
+          progreso: p.progreso,
+          visualEstado: p.visualEstado,
+          uso: p.uso,
+        );
       }
       return p;
     }).toList();
@@ -409,7 +420,6 @@ class TreeStorageService {
 
     // 2. Agregar plantas nuevas de Unity que no existen en Flutter
     final existingInstanceIds = cleanedFlutterPlantas.map((p) => p.instanceId).toSet();
-    final existingIds = cleanedFlutterPlantas.map((p) => p.id).toSet();
     
     final newPlantsFromUnity = <TreePlanta>[];
     
