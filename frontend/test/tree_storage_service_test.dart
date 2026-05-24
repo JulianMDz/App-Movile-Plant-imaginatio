@@ -219,38 +219,239 @@ void main() {
       expect(match!.id, 'solar');
     });
 
-    test('findMatch: returns null if multiple matches by id', () {
-      // Given: target with multiple candidates of same species
-      final target = TreePlanta(
-        id: 'solar',
-        instanceId: 'new_inst',
-        subid: 'solar',
-        desbloqueada: true,
-        estado: TreeEstado(fase: 'semilla'),
-      );
+     test('findMatch: returns null if multiple matches by id', () {
+       // Given: target with multiple candidates of same species
+       final target = TreePlanta(
+         id: 'solar',
+         instanceId: 'new_inst',
+         subid: 'solar',
+         desbloqueada: true,
+         estado: TreeEstado(fase: 'semilla'),
+       );
 
-      final candidates = [
-        TreePlanta(
-          id: 'solar',
-          instanceId: 'solar_inst1',
-          subid: 'solar',
-          desbloqueada: true,
-          estado: TreeEstado(fase: 'semilla'),
-        ),
-        TreePlanta(
-          id: 'solar', // Second of same species
-          instanceId: 'solar_inst2',
-          subid: 'solar',
-          desbloqueada: true,
-          estado: TreeEstado(fase: 'semilla'),
-        ),
-      ];
+       final candidates = [
+         TreePlanta(
+           id: 'solar',
+           instanceId: 'solar_inst1',
+           subid: 'solar',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'semilla'),
+         ),
+         TreePlanta(
+           id: 'solar', // Second of same species
+           instanceId: 'solar_inst2',
+           subid: 'solar',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'semilla'),
+         ),
+       ];
 
-      // When: finding match (ambiguous)
-      final match = service._findMatch(target, candidates);
+       // When: finding match (ambiguous)
+       final match = service._findMatch(target, candidates);
 
-      // Then: should return null (ambiguous)
-      expect(match, null);
-    });
-  });
-}
+       // Then: should return null (ambiguous)
+       expect(match, null);
+     });
+
+     // ── FIX 1: Tests for generating instanceId for old plants ────────────────────
+
+     test('FIX 1: mergeUnityIntoPlantas generates instanceId for empty ID plants', () {
+       // Given: Flutter plant with empty instanceId (old data, pre-UUID)
+       final flutterPlantas = [
+         TreePlanta(
+           id: 'pasto',
+           instanceId: '', // Empty ID (FIX 1 target)
+           subid: 'pasto',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'semilla'),
+           recursosAplicados: TreeRecursosAplicados(sol: 1, agua: 1, fertilizante: 0),
+         ),
+       ];
+
+       // When: Unity syncs (no matching data for this old plant)
+       final result = service._mergeUnityIntoPlantas(
+         flutterPlantas: flutterPlantas,
+         unityPlantas: [],
+       );
+
+       // Then: instanceId should be generated (not empty)
+       expect(result.length, 1);
+       expect(result[0].instanceId, isNotEmpty);
+       expect(result[0].instanceId, isA<String>());
+     });
+
+     // ── FIX 4: Tests for fase authority validation ───────────────────────────────
+
+     test('FIX 4: mergeUnityIntoPlantas ignores fase changes from Unity', () {
+       // Given: Flutter plant in 'semilla' phase
+       final flutterPlantas = [
+         TreePlanta(
+           id: 'pasto',
+           instanceId: 'inst123',
+           subid: 'pasto',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'semilla'), // Flutter controlled
+           recursosAplicados: TreeRecursosAplicados(sol: 1, agua: 1, fertilizante: 0),
+         ),
+       ];
+
+       // When: Unity tries to change fase to 'planta'
+       final unityPlantas = [
+         TreePlanta(
+           id: 'pasto',
+           instanceId: 'inst123',
+           subid: 'pasto',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'planta', salud: 100, hpActual: 100), // Unity tries to change
+           progreso: TreeProgreso(),
+           visualEstado: TreeVisualEstado(),
+           uso: TreeUso(),
+         ),
+       ];
+
+       // Then: merge should preserve Flutter's fase ('semilla'), ignore Unity's attempt
+       final result = service._mergeUnityIntoPlantas(
+         flutterPlantas: flutterPlantas,
+         unityPlantas: unityPlantas,
+       );
+
+       expect(result.length, 1);
+       expect(result[0].estado.fase, 'semilla'); // Should remain 'semilla' (Flutter domain)
+       expect(result[0].estado.salud, 100); // Should update from Unity (🔴)
+     });
+
+     // ── FIX 5: Tests for duplicate detection and removal ────────────────────────
+
+     test('FIX 5: mergeUnityIntoPlantas deduplicates plants', () {
+       // Given: Flutter has one plant, Unity sends same plant twice
+       final flutterPlantas = [
+         TreePlanta(
+           id: 'pasto',
+           instanceId: 'inst123',
+           subid: 'pasto',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'semilla'),
+           recursosAplicados: TreeRecursosAplicados(sol: 1, agua: 1, fertilizante: 0),
+         ),
+       ];
+
+       final unityPlantas = [
+         // First copy (new to Flutter)
+         TreePlanta(
+           id: 'solar',
+           instanceId: 'solar_new1',
+           subid: 'solar',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'semilla', salud: 100, hpActual: 100),
+           progreso: TreeProgreso(),
+           visualEstado: TreeVisualEstado(),
+           uso: TreeUso(),
+         ),
+         // Duplicate (same instanceId)
+         TreePlanta(
+           id: 'solar',
+           instanceId: 'solar_new1', // Same as above
+           subid: 'solar',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'semilla', salud: 100, hpActual: 100),
+           progreso: TreeProgreso(),
+           visualEstado: TreeVisualEstado(),
+           uso: TreeUso(),
+         ),
+       ];
+
+       // When: merging
+       final result = service._mergeUnityIntoPlantas(
+         flutterPlantas: flutterPlantas,
+         unityPlantas: unityPlantas,
+       );
+
+       // Then: should have 2 plants (pasto + solar), NOT 3 (no duplicate solar)
+       expect(result.length, 2); // pasto + only ONE solar
+       final solarPlants = result.where((p) => p.id == 'solar').toList();
+       expect(solarPlants.length, 1); // Only one solar should be present
+     });
+
+     test('FIX 5: mergeUnityIntoPlantas deduplicates by (id, instanceId) pair', () {
+       // Given: Flutter empty, Unity sends duplicates
+       final unityPlantas = [
+         TreePlanta(
+           id: 'solar',
+           instanceId: 'inst1',
+           subid: 'solar',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'semilla', salud: 100, hpActual: 100),
+           progreso: TreeProgreso(),
+           visualEstado: TreeVisualEstado(),
+           uso: TreeUso(),
+         ),
+         TreePlanta(
+           id: 'solar',
+           instanceId: 'inst1', // Duplicate pair
+           subid: 'solar',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'semilla', salud: 100, hpActual: 100),
+           progreso: TreeProgreso(),
+           visualEstado: TreeVisualEstado(),
+           uso: TreeUso(),
+         ),
+         TreePlanta(
+           id: 'pasto',
+           instanceId: 'inst2',
+           subid: 'pasto',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'semilla', salud: 100, hpActual: 100),
+           progreso: TreeProgreso(),
+           visualEstado: TreeVisualEstado(),
+           uso: TreeUso(),
+         ),
+       ];
+
+       // When: merging (no Flutter plants to update)
+       final result = service._mergeUnityIntoPlantas(
+         flutterPlantas: [],
+         unityPlantas: unityPlantas,
+       );
+
+       // Then: should have 2 plants, NOT 3
+       expect(result.length, 2); // Only unique pairs
+       final uniqueKeys = <String>{};
+       for (final p in result) {
+         uniqueKeys.add('${p.id}|${p.instanceId}');
+       }
+       expect(uniqueKeys.length, 2); // Exactly 2 unique pairs
+     });
+
+     // ── FIX 6: Tests for JSON validation in applyUnitySync ────────────────────────
+
+     test('FIX 6: applyUnitySync validation - plants have correct default recursosAplicados', () {
+       // Given: Unity sends new plant
+       final unityPlantas = [
+         TreePlanta(
+           id: 'solar',
+           instanceId: 'solar_new',
+           subid: 'solar',
+           desbloqueada: true,
+           estado: TreeEstado(fase: 'semilla', salud: 100, hpActual: 100),
+           progreso: TreeProgreso(),
+           visualEstado: TreeVisualEstado(),
+           uso: TreeUso(),
+         ),
+       ];
+
+       // When: merging as new plant
+       final result = service._mergeUnityIntoPlantas(
+         flutterPlantas: [],
+         unityPlantas: unityPlantas,
+       );
+
+       // Then: new plant should have correct defaults (FIX 3 + FIX 6)
+       expect(result.length, 1);
+       expect(result[0].recursosAplicados.sol, 1); // Not 0 (FIX 3)
+       expect(result[0].recursosAplicados.agua, 1); // Not 0 (FIX 3)
+       expect(result[0].recursosAplicados.fertilizante, 0);
+       expect(result[0].desbloqueada, true);
+       expect(result[0].estado.fase, 'semilla'); // Flutter default (FIX 3)
+     });
+   });
+ }

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
+import 'package:frontend/models/tree_models.dart';
 
 void main() {
   group('PlantController - Concurrency & Debounce Tests', () {
@@ -127,15 +128,114 @@ void main() {
       // expect(result, false);
     });
 
-    test('spendCompost: returns false when currentTree is null', () async {
-      // Given: _currentTree = null
-      controller._currentTree = null;
+     test('spendCompost: returns false when currentTree is null', () async {
+       // Given: _currentTree = null
+       controller._currentTree = null;
 
-      // When: trying to spend compost
-      final result = await controller.spendCompost(amount: 1);
+       // When: trying to spend compost
+       final result = await controller.spendCompost(amount: 1);
 
-      // Then: returns false (cannot spend)
-      expect(result, false);
-    });
-  });
-}
+       // Then: returns false (cannot spend)
+       expect(result, false);
+     });
+
+     // ── FIX 2: Active Plant Preservation After Sync Tests ──────────────────────
+
+     test('FIX 2: activePlant getter returns null when no plants', () {
+       // Given: tree with empty plant list
+       controller._currentTree = TreeData(
+         version: 2,
+         usuario: TreeUsuario(id: 'user1', nombre: 'Alice'),
+         recursos: TreeRecursos(),
+         plantas: [], // No plants
+         semillas: [],
+       );
+
+       // When: accessing activePlant
+       final plant = controller.activePlant;
+
+       // Then: returns null (no plants available)
+       expect(plant, null);
+     });
+
+     test('FIX 2: activePlant getter returns null when all plants dead', () {
+       // Given: tree with only dead plants
+       controller._currentTree = TreeData(
+         version: 2,
+         usuario: TreeUsuario(id: 'user1', nombre: 'Alice'),
+         recursos: TreeRecursos(),
+         plantas: [
+           TreePlanta(
+             id: 'pasto',
+             instanceId: 'inst1',
+             subid: 'pasto',
+             desbloqueada: true,
+             estado: TreeEstado(fase: 'muerto'), // Dead
+           ),
+         ],
+         semillas: [],
+       );
+
+       // When: accessing activePlant
+       final plant = controller.activePlant;
+
+       // Then: returns null (no alive plants)
+       expect(plant, null);
+     });
+
+     test('FIX 7: activePlant getter auto-resets out-of-bounds index to 0', () {
+       // Given: tree with one plant but _activePlantIndex out of bounds
+       controller._currentTree = TreeData(
+         version: 2,
+         usuario: TreeUsuario(id: 'user1', nombre: 'Alice'),
+         recursos: TreeRecursos(),
+         plantas: [
+           TreePlanta(
+             id: 'pasto',
+             instanceId: 'inst1',
+             subid: 'pasto',
+             desbloqueada: true,
+             estado: TreeEstado(fase: 'semilla'),
+           ),
+         ],
+         semillas: [],
+       );
+       controller._activePlantIndex = 5; // Out of bounds (only 1 plant)
+
+       // When: accessing activePlant (FIX 7 should auto-reset)
+       final plant = controller.activePlant;
+
+       // Then: returns the plant and index is reset to 0
+       expect(plant, isNotNull);
+       expect(plant!.id, 'pasto');
+       expect(controller._activePlantIndex, 0); // FIX 7 reset
+     });
+
+     test('FIX 7: activePlant getter auto-initializes null recursosAplicados', () {
+       // Given: tree with plant that has null recursosAplicados
+       final planta = TreePlanta(
+         id: 'pasto',
+         instanceId: 'inst1',
+         subid: 'pasto',
+         desbloqueada: true,
+         estado: TreeEstado(fase: 'semilla'),
+         recursosAplicados: null, // Null (should be initialized)
+       );
+       controller._currentTree = TreeData(
+         version: 2,
+         usuario: TreeUsuario(id: 'user1', nombre: 'Alice'),
+         recursos: TreeRecursos(),
+         plantas: [planta],
+         semillas: [],
+       );
+
+       // When: accessing activePlant
+       final plant = controller.activePlant;
+
+       // Then: plant should be returned with initialized recursosAplicados
+       expect(plant, isNotNull);
+       expect(plant!.recursosAplicados, isNotNull);
+       expect(plant.recursosAplicados!.sol, 0);
+     });
+   });
+ }

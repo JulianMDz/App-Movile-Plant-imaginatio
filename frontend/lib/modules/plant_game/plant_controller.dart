@@ -403,11 +403,12 @@ class PlantController extends ChangeNotifier {
   // ── Gasto de recursos en la planta activa ──────────────────────────────────────
 
   /// Retorna la planta activa según el índice seleccionado.
-  /// 
+  ///
   /// Defensive guards:
   /// - Returns null if _currentTree is null
-  /// - Validates _activePlantIndex is within bounds
+  /// - Validates _activePlantIndex is within bounds (FIX 7: post-sync validation)
   /// - Handles empty or all-dead plant lists gracefully
+  /// - Auto-initializes recursosAplicados if null
   TreePlanta? get activePlant {
     // Guard 1: Ensure tree is loaded
     if (_currentTree == null) {
@@ -422,9 +423,9 @@ class PlantController extends ChangeNotifier {
       return null;
     }
 
-    // Guard 3: Validate index is within bounds
+    // Guard 3: Validate index is within bounds (FIX 7 helps prevent OOB after sync)
     if (_activePlantIndex < 0 || _activePlantIndex >= plants.length) {
-      debugPrint('[PlantController] ⚠️ activePlant: index $_activePlantIndex out of bounds (max ${plants.length - 1}); resetting to 0');
+      debugPrint('[PlantController] ⚠️ FIX 7: activePlant: index $_activePlantIndex out of bounds (max ${plants.length - 1}); resetting to 0');
       _activePlantIndex = 0;
     }
 
@@ -994,6 +995,10 @@ class PlantController extends ChangeNotifier {
         return false;
       }
 
+      // FIX 2a: ANTES de aplicar sync, guardar instanceId de planta activa actual
+      final previousActivePlantId = activePlant?.instanceId;
+      debugPrint('[PlantController] 🔖 FIX 2a: Saved previous active plant ID: $previousActivePlantId');
+
       // Aplicar merge (Unity → .tree local): solo actualiza campos 🔴
       await _treeStorage.applyUnitySync(unityData);
 
@@ -1003,7 +1008,25 @@ class PlantController extends ChangeNotifier {
         // Aplicar decay pasivo tras el import (igual que al cargar la sesión)
         await applyPassiveDecay();
         _currentUser = _userModelFromTree(_currentTree!);
+
+        // FIX 2b: DESPUÉS de sync, restaurar planta activa por instanceId
+        if (previousActivePlantId != null && previousActivePlantId.isNotEmpty) {
+          final previousPlant = _currentTree!.plantas
+              .firstWhereOrNull((p) => p.instanceId == previousActivePlantId);
+          
+          if (previousPlant != null) {
+            // Planta activa anterior aún existe; restaurar
+            final idx = _currentTree!.plantas.indexOf(previousPlant);
+            _activePlantIndex = idx;
+            debugPrint('[PlantController] ✅ FIX 2b: Restored active plant: ${previousPlant.id} (instanceId=$previousActivePlantId, idx=$idx)');
+          } else {
+            // Planta anterior fue eliminada; fallback a siguiente disponible
+            debugPrint('[PlantController] ⚠️ FIX 2b: Previous active plant (ID=$previousActivePlantId) was deleted; fallback to next available');
+            _fallbackToNextAvailablePlant();
+          }
+        }
       }
+      
       notifyListeners();
       debugPrint('[PlantController] ✅ Import desde Unity aplicado.');
       return true;
@@ -1011,6 +1034,25 @@ class PlantController extends ChangeNotifier {
       debugPrint('[PlantController] ❌ Error importando desde Unity: $e');
       return false;
     }
+  }
+
+  /// FIX 2c: Fallback helper - encuentra la siguiente planta desbloqueada y viva
+  /// cuando la planta activa anterior fue eliminada durante el sync.
+  void _fallbackToNextAvailablePlant() {
+    final plants = _currentTree?.plantas
+        .where((p) => p.desbloqueada && p.estado.fase != 'muerto')
+        .toList() ?? [];
+    
+    if (plants.isEmpty) {
+      _activePlantIndex = 0;
+      debugPrint('[PlantController] ⚠️ FIX 2c: No plants available; setting index to 0 (activePlant getter will return null)');
+      return;
+    }
+    
+    final nextPlant = plants.first;
+    final idx = _currentTree!.plantas.indexOf(nextPlant);
+    _activePlantIndex = idx;
+    debugPrint('[PlantController] ✅ FIX 2c: Fallback: switched to plant ${nextPlant.id} (idx=$idx, instanceId=${nextPlant.instanceId})');
   }
 
   /// Abre la pantalla de Ajustes para que el usuario conceda acceso a Documents.

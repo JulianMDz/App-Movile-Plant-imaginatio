@@ -128,6 +128,9 @@ class SharedTreeStorageService {
 
   /// Lee el archivo Data_user.tree y lo parsea a [TreeData].
   /// Retorna `null` si el archivo no existe o no hay permisos.
+  ///
+  /// FIX 6: Valida que el JSON sea válido y TreeData sea bien-formado.
+  /// Si JSON está corrupto, retorna null en lugar de crashear.
   Future<TreeData?> importTree() async {
     final hasPermission = await checkPermissions();
     if (!hasPermission) {
@@ -141,18 +144,31 @@ class SharedTreeStorageService {
       return null;
     }
 
-    final contents = await file.readAsString();
-    final json = jsonDecode(contents) as Map<String, dynamic>;
-    final data = TreeData.fromJson(json);
+    try {
+      final contents = await file.readAsString();
+      final json = jsonDecode(contents) as Map<String, dynamic>;
+      final data = TreeData.fromJson(json);
 
-    await _saveMetadata({
-      'last_import': DateTime.now().toUtc().toIso8601String(),
-      'user_id': data.usuario.id,
-      'source': 'unity_import',
-    });
+      // FIX 6: Validar que TreeData es bien-formado
+      if (data.usuario.id.isEmpty) {
+        throw Exception('TreeData.usuario.id is empty');
+      }
+      if (data.version != 2) {
+        throw Exception('Expected TreeData version 2, got ${data.version}');
+      }
 
-    debugPrint('[SharedTree] ✅ Importado desde: ${file.path}');
-    return data;
+      await _saveMetadata({
+        'last_import': DateTime.now().toUtc().toIso8601String(),
+        'user_id': data.usuario.id,
+        'source': 'unity_import',
+      });
+
+      debugPrint('[SharedTree] ✅ Importado desde: ${file.path}');
+      return data;
+    } catch (e) {
+      debugPrint('[SharedTree] ❌ FIX 6: Error parsing .tree file: $e');
+      return null; // Retorna null en lugar de crashear
+    }
   }
 
   // ── Backup ────────────────────────────────────────────────────────────────

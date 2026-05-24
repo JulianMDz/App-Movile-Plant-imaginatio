@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/tree_models.dart';
 
@@ -359,22 +360,43 @@ class TreeStorageService {
   /// Para cada planta existente (Flutter), busca la versión de Unity y aplica
   /// solo los campos 🔴. También agrega nuevas plantas de Unity que no existen en Flutter.
   /// Usado en [applyUnitySync].
+  ///
+  /// FIX 1: Genera instanceId automáticamente para plantas viejas con ID vacío (pre-instanceId).
+  /// FIX 4: Valida que fase NUNCA se actualiza desde Unity (auditoría).
+  /// FIX 5: Detecta y previene duplicación de plantas.
   List<TreePlanta> _mergeUnityIntoPlantas({
     required List<TreePlanta> flutterPlantas,
     required List<TreePlanta> unityPlantas,
   }) {
+    const uuid = Uuid();
+    
+    // FIX 1: Limpiar plantas viejas con instanceId vacío
+    final cleanedFlutterPlantas = flutterPlantas.map((p) {
+      if (p.instanceId.isEmpty) {
+        final newId = uuid.v4();
+        p.instanceId = newId;
+        debugPrint('[Merge] 🔧 FIX 1: Generated instanceId for old plant ${p.id}: $newId');
+      }
+      return p;
+    }).toList();
+    
     // 1. Mantener plantas existentes de Flutter (actualizadas por Unity)
-    final mergedPlantas = flutterPlantas.map((fp) {
+    final mergedPlantas = cleanedFlutterPlantas.map((fp) {
       final unityMatch = _findMatch(fp, unityPlantas);
       if (unityMatch == null) return fp; // Unity no tiene datos de esta planta
 
+      // FIX 4: Validar que fase NUNCA se actualiza desde Unity
+      if (unityMatch.estado.fase != fp.estado.fase) {
+        debugPrint('[TreeStorageService] ⚠️ FIX 4 AUTHORITY VIOLATION: Unity attempted to modify fase for ${fp.id} (${fp.estado.fase} → ${unityMatch.estado.fase}); IGNORED. Phase is Flutter domain.');
+      }
+
       return TreePlanta(
         id: fp.id, // 🟢 preservado
-        instanceId: fp.instanceId, // 🟢 inmutable
+        instanceId: fp.instanceId, // 🟢 inmutable (now always populated)
         subid: fp.subid, // 🟢 preservado
         desbloqueada: fp.desbloqueada, // 🟢 preservado
         estado: TreeEstado(
-          fase: fp.estado.fase, // 🟢 Flutter — no tocar
+          fase: fp.estado.fase, // 🟢 Flutter — no tocar (ignore unityMatch.fase)
           salud: unityMatch.estado.salud, // 🔴 Unity actualiza
           hpActual: unityMatch.estado.hpActual, // 🔴 Unity actualiza
         ),
@@ -386,8 +408,8 @@ class TreeStorageService {
     }).toList();
 
     // 2. Agregar plantas nuevas de Unity que no existen en Flutter
-    final existingInstanceIds = flutterPlantas.map((p) => p.instanceId).toSet();
-    final existingIds = flutterPlantas.map((p) => p.id).toSet();
+    final existingInstanceIds = cleanedFlutterPlantas.map((p) => p.instanceId).toSet();
+    final existingIds = cleanedFlutterPlantas.map((p) => p.id).toSet();
     
     final newPlantsFromUnity = <TreePlanta>[];
     
@@ -399,16 +421,36 @@ class TreeStorageService {
           instanceId: up.instanceId,
           subid: up.subid,
           desbloqueada: true,
-          estado: TreeEstado(fase: 'semilla'), // 🟢 default
+          estado: TreeEstado(fase: 'semilla'), // 🟢 default (Flutter domain)
           progreso: up.progreso,
           visualEstado: TreeVisualEstado(),
           uso: up.uso,
-          recursosAplicados: TreeRecursosAplicados(sol: 1, agua: 1, fertilizante: 0), // 🟢 default
+          recursosAplicados: TreeRecursosAplicados(
+            sol: 1, 
+            agua: 1, 
+            fertilizante: 0, // 🟢 Mínimo inicial para que no muera inmediatamente tras import
+          ),
         ));
       }
     }
 
-    return [...mergedPlantas, ...newPlantsFromUnity];
+    // FIX 5: Dedup de plantas por (id, instanceId)
+    final finalPlantas = [...mergedPlantas, ...newPlantsFromUnity];
+    final seen = <String>{};
+    final dedupedPlantas = <TreePlanta>[];
+
+    for (final p in finalPlantas) {
+      final key = '${p.id}|${p.instanceId}';
+      if (seen.contains(key)) {
+        debugPrint('[Merge] ⚠️ FIX 5: Duplicate detected and removed: $key');
+      } else {
+        seen.add(key);
+        dedupedPlantas.add(p);
+      }
+    }
+
+    debugPrint('[Merge] 📊 FIX 5: Dedup result: ${finalPlantas.length} → ${dedupedPlantas.length} plantas');
+    return dedupedPlantas;
   }
 
   /// Busca la contraparte de [target] en [candidates].
