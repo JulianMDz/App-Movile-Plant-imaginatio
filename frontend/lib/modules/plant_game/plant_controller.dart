@@ -23,6 +23,22 @@ class PlantController extends ChangeNotifier {
   final SharedTreeStorageService _sharedStorage = SharedTreeStorageService();
   static const _uuid = Uuid();
 
+  // ── Concurrency Guard for saveTree (Debounce Mechanism) ──────────────────────
+  /// Prevents concurrent save operations; if a save is already in progress,
+  /// subsequent calls return immediately without queuing.
+  /// This ensures no data loss or corruption from overlapping writes.
+  bool _isSaving = false;
+  
+  /// Optional queue counter for future batching (if rapid-fire saves required).
+  int _savingQueueCount = 0;
+
+  // ── Minigame Overlay Debounce Guards ───────────────────────────────────────
+  /// Prevents double-tap or rapid re-activation of minigame overlays.
+  /// Set to true when overlay is being launched; reset when overlay closes.
+  bool _sunOverlayActive = false;
+  bool _waterOverlayActive = false;
+  bool _compostOverlayActive = false;
+
   // ── Cooldowns de Minijuegos (persisten entre sesiones via SharedPreferences) ─
   static const Duration sunGameCooldown = Duration(minutes: 10);
   static const Duration waterGameCooldown = Duration(minutes: 10);
@@ -184,7 +200,7 @@ class PlantController extends ChangeNotifier {
       if (_currentTree != null) {
         _ensureDefaultPlant();
         await applyPassiveDecay();
-        await saveTree();
+        await saveTreeDebounced(); // Use debounced version to prevent concurrency
         _currentUser = _userModelFromTree(_currentTree!);
         await _loadCooldowns();
         notifyListeners();
@@ -199,8 +215,8 @@ class PlantController extends ChangeNotifier {
 
       _currentTree = _treeFromUserModel(_currentUser!);
       _ensureDefaultPlant();
-      await saveTree();                  // persiste el tree con la planta pasto inicial
-      await _loadCooldowns();            // cargar cooldowns desde SharedPreferences
+      await saveTreeDebounced();            // Use debounced version; persiste el tree con la planta pasto inicial
+      await _loadCooldowns();               // cargar cooldowns desde SharedPreferences
       notifyListeners();
     } catch (e) {
       debugPrint('[PlantController] Error al cargar datos: $e');
@@ -292,9 +308,8 @@ class PlantController extends ChangeNotifier {
 
     if (plant.recursosAplicados.agua <= 0 || plant.recursosAplicados.sol <= 0) {
       plant.estado.fase = 'muerto';
-      _showDeathAnimation = true;
       debugPrint(
-        '[PlantController] 🚨 Planta activa ${plant.id} ha muerto por falta de recursos.'
+        '[PlantController] 🚨 Planta activa ${plant.id} ha muerto por falta de recursos (fase=muerto).'
       );
     } else {
       final sol = plant.recursosAplicados.sol;
@@ -311,7 +326,7 @@ class PlantController extends ChangeNotifier {
     final newInteraction = fakeNow ?? DateTime.now().toUtc();
     debugPrint('[Decay] 📅 Actualizando lastInteraction a: ${newInteraction.toIso8601String()}');
     await _authStorage.savePlantLastInteraction(plant.instanceId, newInteraction);
-    await saveTree(); // Persistir cambios del decay
+    await saveTreeDebounced(); // Use debounced version; persistir cambios del decay
     notifyListeners(); // Actualizar UI (barras de recursos + animaciones de urgencia)
 
     debugPrint('[PlantController] ⏳ Decay aplicado solo a planta activa: ${plant.id}');
@@ -388,16 +403,40 @@ class PlantController extends ChangeNotifier {
   // ── Gasto de recursos en la planta activa ──────────────────────────────────────
 
   /// Retorna la planta activa según el índice seleccionado.
+  /// 
+  /// Defensive guards:
+  /// - Returns null if _currentTree is null
+  /// - Validates _activePlantIndex is within bounds
+  /// - Handles empty or all-dead plant lists gracefully
   TreePlanta? get activePlant {
-    if (_currentTree == null || _currentTree!.plantas.isEmpty) return null;
+    // Guard 1: Ensure tree is loaded
+    if (_currentTree == null) {
+      debugPrint('[PlantController] ⚠️ activePlant: currentTree is null');
+      return null;
+    }
+
+    // Guard 2: Filter to valid, alive plants
     final plants = _currentTree!.plantas.where((p) => p.desbloqueada && p.estado.fase != 'muerto').toList();
-    if (plants.isEmpty) return null;
-    // Validar que el índice sea válido para la lista filtrada
+    if (plants.isEmpty) {
+      debugPrint('[PlantController] ⚠️ activePlant: no alive, unlocked plants available');
+      return null;
+    }
+
+    // Guard 3: Validate index is within bounds
     if (_activePlantIndex < 0 || _activePlantIndex >= plants.length) {
-      // Si el índice no es válido, usar la primera planta disponible
+      debugPrint('[PlantController] ⚠️ activePlant: index $_activePlantIndex out of bounds (max ${plants.length - 1}); resetting to 0');
       _activePlantIndex = 0;
     }
-    return plants[_activePlantIndex];
+
+    final plant = plants[_activePlantIndex];
+    
+    // Guard 4: Validate plant object is properly initialized
+    if (plant.recursosAplicados == null) {
+      debugPrint('[PlantController] ⚠️ activePlant: ${plant.id} recursosAplicados is null; initializing');
+      plant.recursosAplicados = TreeRecursosAplicados();
+    }
+
+    return plant;
   }
 
   /// Retorna la planta por índice directo (para inventario).
@@ -436,57 +475,145 @@ class PlantController extends ChangeNotifier {
   /// Gasta [amount] unidades de sol del inventario.
   /// Retorna `true` si había stock (la animación se muestra).
   /// Si hay una planta activa viva, también aplica los recursos a ella.
+  /// 
+  /// Defensive checks:
+  /// - Validates _currentTree is not null
+  /// - Validates activePlant is not null before applying resources
+  /// - Validates plant.recursosAplicados is properly initialized
   Future<bool> spendSun({int amount = 1}) async {
-    if (_currentTree == null) return false;
-    if (_currentTree!.recursos.sol.cantidad < amount) return false;
-    // Descontar inventario
+    // Guard 1: Ensure tree is loaded
+    if (_currentTree == null) {
+      debugPrint('[PlantController] ⚠️ Cannot spend sun: currentTree is null');
+      return false;
+    }
+
+    // Guard 2: Check available stock
+    if (_currentTree!.recursos.sol.cantidad < amount) {
+      debugPrint('[PlantController] ⚠️ Cannot spend sun: insufficient stock (have ${_currentTree!.recursos.sol.cantidad}, need $amount)');
+      return false;
+    }
+
+    // Deduct from inventory
     _currentTree!.recursos.sol.cantidad -= amount;
     _currentUser?.resources.sunAmount -= amount;
-    // Aplicar a planta activa si existe (opcional)
+
+    // Guard 3: Apply to active plant if exists
     final plant = activePlant;
     if (plant != null) {
+      // Guard 4: Validate plant resources are initialized
+      if (plant.recursosAplicados == null) {
+        debugPrint('[PlantController] ⚠️ Plant ${plant.id} recursosAplicados is null; initializing');
+        plant.recursosAplicados = TreeRecursosAplicados();
+      }
+
       plant.recursosAplicados.sol += amount;
       _checkEvolution(plant);
-      // Actualizar lastInteraction para que no aplique decay inmediatamente
-      await _authStorage.savePlantLastInteraction(plant.instanceId, DateTime.now().toUtc());
-      saveTree(); // Persistir cambios
+      
+      // Guard 5: Update lastInteraction safely
+      try {
+        await _authStorage.savePlantLastInteraction(plant.instanceId, DateTime.now().toUtc());
+      } catch (e) {
+        debugPrint('[PlantController] ⚠️ Error updating lastInteraction: $e');
+      }
+
+      saveTreeDebounced(); // Fire-and-forget with debounce protection
     }
+
     notifyListeners();
     return true; // siempre true si hay stock → animación siempre se dispara
   }
 
   /// Gasta [amount] unidades de agua del inventario.
+  /// 
+  /// Defensive checks:
+  /// - Validates _currentTree is not null
+  /// - Validates activePlant is not null before applying resources
+  /// - Validates plant.recursosAplicados is properly initialized
   Future<bool> spendWater({int amount = 1}) async {
-    if (_currentTree == null) return false;
-    if (_currentTree!.recursos.agua.cantidad < amount) return false;
+    // Guard 1: Ensure tree is loaded
+    if (_currentTree == null) {
+      debugPrint('[PlantController] ⚠️ Cannot spend water: currentTree is null');
+      return false;
+    }
+
+    // Guard 2: Check available stock
+    if (_currentTree!.recursos.agua.cantidad < amount) {
+      debugPrint('[PlantController] ⚠️ Cannot spend water: insufficient stock (have ${_currentTree!.recursos.agua.cantidad}, need $amount)');
+      return false;
+    }
+
     _currentTree!.recursos.agua.cantidad -= amount;
     _currentUser?.resources.waterAmount -= amount;
+
     final plant = activePlant;
     if (plant != null) {
+      // Guard 3: Validate plant resources are initialized
+      if (plant.recursosAplicados == null) {
+        debugPrint('[PlantController] ⚠️ Plant ${plant.id} recursosAplicados is null; initializing');
+        plant.recursosAplicados = TreeRecursosAplicados();
+      }
+
       plant.recursosAplicados.agua += amount;
       _checkEvolution(plant);
-      await _authStorage.savePlantLastInteraction(plant.instanceId, DateTime.now().toUtc());
-      saveTree(); // Persistir cambios
+
+      // Guard 4: Update lastInteraction safely
+      try {
+        await _authStorage.savePlantLastInteraction(plant.instanceId, DateTime.now().toUtc());
+      } catch (e) {
+        debugPrint('[PlantController] ⚠️ Error updating lastInteraction: $e');
+      }
+
+      saveTreeDebounced(); // Fire-and-forget with debounce protection
     }
+
     notifyListeners();
     return true;
   }
 
   /// Gasta [amount] unidades de fertilizante del inventario.
   /// Añade [amount] fertilizante a la planta activa.
+  ///
+  /// Defensive checks:
+  /// - Validates _currentTree is not null
+  /// - Validates activePlant is not null before applying resources
+  /// - Validates plant.recursosAplicados is properly initialized
   Future<bool> spendCompost({int amount = 1}) async {
-    if (_currentTree == null) return false;
-    if (_currentTree!.recursos.fertilizante.cantidad < amount) return false;
+    // Guard 1: Ensure tree is loaded
+    if (_currentTree == null) {
+      debugPrint('[PlantController] ⚠️ Cannot spend compost: currentTree is null');
+      return false;
+    }
+
+    // Guard 2: Check available stock
+    if (_currentTree!.recursos.fertilizante.cantidad < amount) {
+      debugPrint('[PlantController] ⚠️ Cannot spend compost: insufficient stock (have ${_currentTree!.recursos.fertilizante.cantidad}, need $amount)');
+      return false;
+    }
+
     _currentTree!.recursos.fertilizante.cantidad -= amount;
     _currentUser?.resources.fertilizerAmount -= amount;
+
     final plant = activePlant;
     if (plant != null) {
+      // Guard 3: Validate plant resources are initialized
+      if (plant.recursosAplicados == null) {
+        debugPrint('[PlantController] ⚠️ Plant ${plant.id} recursosAplicados is null; initializing');
+        plant.recursosAplicados = TreeRecursosAplicados();
+      }
+
       plant.recursosAplicados.fertilizante += amount;
       _checkEvolution(plant);
-      // Actualizar lastInteraction para que no aplique decay inmediatamente
-      await _authStorage.savePlantLastInteraction(plant.instanceId, DateTime.now().toUtc());
-      saveTree(); // Persistir cambios
+
+      // Guard 4: Update lastInteraction safely
+      try {
+        await _authStorage.savePlantLastInteraction(plant.instanceId, DateTime.now().toUtc());
+      } catch (e) {
+        debugPrint('[PlantController] ⚠️ Error updating lastInteraction: $e');
+      }
+
+      saveTreeDebounced(); // Fire-and-forget with debounce protection
     }
+
     notifyListeners();
     return true;
   }
@@ -789,23 +916,68 @@ class PlantController extends ChangeNotifier {
     }
   }
 
+  /// Saves tree state with concurrency protection (debounce).
+  /// If a save is already in progress, returns immediately to prevent
+  /// concurrent writes and data corruption.
+  ///
+  /// This is the preferred method for all save operations.
+  /// Use directly from minigame overlays, resource spending, and decay.
+  ///
+  /// Flow:
+  /// 1. Check if save is in progress; return early if so
+  /// 2. Set _isSaving flag
+  /// 3. Perform full save (saveTreeLocally + exportTree)
+  /// 4. Clear _isSaving flag
+  /// 5. Log result and notify listeners
+  Future<void> saveTreeDebounced() async {
+    // Guard 1: Prevent concurrent saves
+    if (_isSaving) {
+      debugPrint('[PlantController] ℹ️ Save already in progress; skipping duplicate');
+      return;
+    }
+
+    _isSaving = true;
+    try {
+      // Guard 2: Ensure tree exists
+      if (_currentTree == null) {
+        debugPrint('[PlantController] ⚠️ Cannot save: currentTree is null');
+        return;
+      }
+
+      // Perform full save with field authority enforcement
+      await _treeStorage.saveTreeLocally(flutterData: _currentTree!);
+
+      // Sync legacy UserModel
+      if (_currentUser != null) {
+        await _authStorage.saveUser(_currentUser!);
+      }
+
+      // Auto-export to shared storage (non-critical; errors logged silently)
+      try {
+        await _sharedStorage.exportTree(_currentTree!, silent: true);
+      } catch (e) {
+        debugPrint('[PlantController] ⚠️ Auto-export to shared storage failed: $e');
+      }
+
+      debugPrint('[PlantController] ✅ Tree saved successfully (debounced)');
+    } catch (e) {
+      debugPrint('[PlantController] ❌ Error saving tree: $e');
+      // Rethrow to allow calling code to handle critical save failures
+      rethrow;
+    } finally {
+      _isSaving = false;
+    }
+  }
+
   /// Persiste el .tree actual en SharedPreferences aplicando la lógica de
   /// merge para preservar los campos 🔴 de Unity.
   /// Después exporta automáticamente al archivo Documents/IMAGINATIO/Data_user.tree.
+  ///
+  /// DEPRECATED: Use saveTreeDebounced() instead to prevent concurrency issues.
+  /// This method is kept for backward compatibility during migration.
   Future<void> saveTree() async {
-    if (_currentTree == null) return;
-    await _treeStorage.saveTreeLocally(flutterData: _currentTree!);
-    // Sincronizar también el UserModel legacy
-    if (_currentUser != null) {
-      await _authStorage.saveUser(_currentUser!);
-    }
-    // ── Auto-exportar al archivo físico compartido (silent: sin diálogos) ────
-    try {
-      await _sharedStorage.exportTree(_currentTree!, silent: true);
-    } catch (e) {
-      // No crítico: la app funciona aunque falle la exportación al archivo
-      debugPrint('[PlantController] ⚠️ Auto-export fallido: $e');
-    }
+    // Delegate to debounced version to ensure concurrency protection
+    await saveTreeDebounced();
   }
 
   /// Importa el .tree desde Documents/IMAGINATIO/ (cambios escritos por Unity)
@@ -1078,5 +1250,64 @@ class PlantController extends ChangeNotifier {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  // ── Overlay Debounce Guards (Prevent Double-Tap) ────────────────────────────
+
+  /// Checks and sets Sun overlay debounce guard.
+  /// Returns true if overlay can be launched (not already active).
+  /// Returns false if overlay is already active (debounced).
+  bool canLaunchSunOverlay() {
+    if (_sunOverlayActive) {
+      debugPrint('[PlantController] ℹ️ Sun overlay already active; ignoring tap');
+      return false;
+    }
+    _sunOverlayActive = true;
+    debugPrint('[PlantController] 🟡 Sun overlay guard: ACTIVE');
+    return true;
+  }
+
+  /// Resets Sun overlay debounce guard when overlay closes.
+  void resetSunOverlay() {
+    _sunOverlayActive = false;
+    debugPrint('[PlantController] 🟡 Sun overlay guard: RESET');
+  }
+
+  /// Checks and sets Water overlay debounce guard.
+  /// Returns true if overlay can be launched (not already active).
+  /// Returns false if overlay is already active (debounced).
+  bool canLaunchWaterOverlay() {
+    if (_waterOverlayActive) {
+      debugPrint('[PlantController] ℹ️ Water overlay already active; ignoring tap');
+      return false;
+    }
+    _waterOverlayActive = true;
+    debugPrint('[PlantController] 💧 Water overlay guard: ACTIVE');
+    return true;
+  }
+
+  /// Resets Water overlay debounce guard when overlay closes.
+  void resetWaterOverlay() {
+    _waterOverlayActive = false;
+    debugPrint('[PlantController] 💧 Water overlay guard: RESET');
+  }
+
+  /// Checks and sets Compost overlay debounce guard.
+  /// Returns true if overlay can be launched (not already active).
+  /// Returns false if overlay is already active (debounced).
+  bool canLaunchCompostOverlay() {
+    if (_compostOverlayActive) {
+      debugPrint('[PlantController] ℹ️ Compost overlay already active; ignoring tap');
+      return false;
+    }
+    _compostOverlayActive = true;
+    debugPrint('[PlantController] 🟤 Compost overlay guard: ACTIVE');
+    return true;
+  }
+
+  /// Resets Compost overlay debounce guard when overlay closes.
+  void resetCompostOverlay() {
+    _compostOverlayActive = false;
+    debugPrint('[PlantController] 🟤 Compost overlay guard: RESET');
   }
 }

@@ -346,7 +346,7 @@ class PlantGameScreen extends FlameGame {
       final double scaleFactor = size.y / 1080.0;
       
       // Aplicar estrictamente la escala original de la fase (sin modificar)
-      // La escala se actualiza en _onControllerAnimationChange según el estado 
+      _plant.scale = _plant.stageScale; 
       
 // Posicionar en el 78% de la pantalla (suelo) + el offset visual de la fase escalado
       _plant.position = Vector2(
@@ -363,25 +363,34 @@ class PlantGameScreen extends FlameGame {
     try {
       if (context == null) return;
       final controller = Provider.of<PlantController>(context, listen: false);
+    
+    // Obtener planta activa (puede ser null si está muerta)
     final plant = controller.activePlant;
-    final plantType = plant?.id ?? 'pasto';
-    final fase = plant?.estado.fase ?? 'arbusto';
-    final sol = plant?.recursosAplicados.sol ?? 0;
-    final agua = plant?.recursosAplicados.agua ?? 0;
-    final fert = plant?.recursosAplicados.fertilizante ?? 0;
+    
+    // También verificar si hay plantas muertas en el árbol para mostrar animación
+    final hasDeadPlant = controller.currentTree?.plantas.any((p) => p.estado.fase == 'muerto') ?? false;
+    debugPrint('[PlantScreen] 🔍 Plantas en el árbol: ${controller.currentTree?.plantas.map((p) => '${p.id}:${p.estado.fase}').join(', ')}');
+    debugPrint('[PlantScreen] 🔍 hasDeadPlant: $hasDeadPlant, activePlant es null: ${plant == null}');
+    
+    // Si activePlant es null pero hay una planta muerte, usar la planta muerta
+    final deadPlant = hasDeadPlant ? controller.currentTree?.plantas.firstWhere((p) => p.estado.fase == 'muerto', orElse: () => plant!) : null;
+    final displayPlant = plant ?? deadPlant;
+    
+    if (displayPlant == null) {
+      debugPrint('[PlantScreen] ⚠️ No hay planta para mostrar');
+      return;
+    }
+    
+    final plantType = displayPlant.id;
+    final fase = displayPlant.estado.fase;
+    final sol = displayPlant.recursosAplicados.sol;
+    final agua = displayPlant.recursosAplicados.agua;
+    final fert = displayPlant.recursosAplicados.fertilizante;
     debugPrint('[PlantScreen] 📊 Estado actual: planta=$plantType, fase=$fase, sol=$sol, agua=$agua, fert=$fert');
 
-    // Bug 3: Debug adicional para verificar fase al cargar
+    // Debug adicional para verificar fase al cargar
     if (fase == 'muerto') {
       debugPrint('[PlantScreen] 💀 La planta está en estado de MUERTE');
-    }
-
-    // Bug 1: Reducir escala un 5% cuando la planta está en estado de muerte
-    if (fase == 'muerto') {
-      _plant.scale = _plant.stageScale * 0.95;
-      debugPrint('[PlantScreen] 💀 Planta en muerte - escala reducida 5%');
-    } else {
-      _plant.scale = _plant.stageScale;
     }
     
     // Detectar cambio de planta activa O cambio de fase (evolución/muerte)
@@ -394,6 +403,7 @@ class PlantGameScreen extends FlameGame {
       if (fase == 'semilla') newStage = 1;
       else if (fase == 'planta') newStage = 3;
       else if (fase == 'ent') newStage = 4;
+      else if (fase == 'muerto') newStage = 0; // Stage 0 = fase dead
       
       // Cargar bajo demanda las imágenes de la nueva planta
       _plant.updatePlant(plantType, newStage);
@@ -412,30 +422,18 @@ class PlantGameScreen extends FlameGame {
       debugPrint('[PlantScreen] 🌱 Animación de evolución reproducida');
     }
 
-    // Bug 2: Eliminar animaciones de estado anteriores antes de agregar nuevas
+    // Eliminar animaciones de peligro/crítico anteriores (muerte no es animación overlay)
     final existingStateAnims = children.where((c) => 
-      c is Animation_critical || c is Animation_danger || c is Animation_tombstone
+      c is Animation_critical || c is Animation_danger
     ).toList();
     for (final anim in existingStateAnims) {
       anim.removeFromParent();
     }
-    debugPrint('[PlantScreen] 🗑️ Eliminadas ${existingStateAnims.length} animaciones de estado anteriores');
+    debugPrint('[PlantScreen] 🗑️ Eliminadas ${existingStateAnims.length} animaciones de peligro/crítico anteriores');
 
-    // Bug 2: Lógica de prioridad - solo mostrar la animación correspondiente al estado actual
-    // PRIORIDAD 1: MUERTO (sol <= 0 O agua <= 0 O fase == 'muerto')
-    if (fase == 'muerto' || sol <= 0 || agua <= 0) {
-      final anim = Animation_tombstone(
-        plantType,
-        Vector2(size.x / 2, size.y / 2),
-      )
-        ..anchor = Anchor.center
-        ..removeOnFinish = false; // Se mantiene siempre en muerte
-      add(anim);
-      controller.clearAnimationFlags();
-      debugPrint('[PlantScreen] 💀 Animación de MUERTE mostrada (fase=$fase, sol=$sol, agua=$agua)');
-    }
-    // PRIORIDAD 2: CRÍTICO (sol <= 2 O agua <= 2)
-    else if (sol <= 2 || agua <= 2) {
+    // Muerte es cambio de fase (no animación overlay), solo peligro y crítico son overlays
+    // PRIORIDAD 1: CRÍTICO (sol <= 2 O agua <= 2)
+    if (sol <= 2 || agua <= 2) {
       final anim = Animation_critical(
         plantType,
         Vector2(size.x / 2, size.y * 0.3),
@@ -446,7 +444,7 @@ class PlantGameScreen extends FlameGame {
       controller.clearAnimationFlags();
       debugPrint('[PlantScreen] ⚠️ Animación de CRÍTICO mostrada (sol=$sol, agua=$agua)');
     }
-    // PRIORIDAD 3: PELIGRO (sol <= 4 O agua <= 4, pero no crítico)
+    // PRIORIDAD 2: PELIGRO (sol <= 4 O agua <= 4, pero no crítico)
     else if (sol <= 4 || agua <= 4) {
       final anim = Animation_danger(
         plantType,
@@ -458,9 +456,9 @@ class PlantGameScreen extends FlameGame {
       controller.clearAnimationFlags();
       debugPrint('[PlantScreen] ⚠️ Animación de PELIGRO mostrada (sol=$sol, agua=$agua)');
     }
-    // Estado normal: no hay animación (recursos OK)
+    // Estado normal o muerto: no hay animación overlay (muerte es cambio de fase)
     else {
-      debugPrint('[PlantScreen] ✅ Estado normal - sin animación (sol=$sol, agua=$agua)');
+      debugPrint('[PlantScreen] ✅ Estado normal/muerto - sin animación overlay (sol=$sol, agua=$agua, fase=$fase)');
     }
 
     controller.clearAnimationFlags();

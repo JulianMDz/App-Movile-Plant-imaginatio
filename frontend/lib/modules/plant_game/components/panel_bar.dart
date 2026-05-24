@@ -99,6 +99,12 @@ class PanelLayout extends PositionComponent {
   void _syncFromController() {
     debugPrint('[PanelBar] 🔔 _syncFromController appelé (listener activado)');
     try {
+      // Verificar que el contexto es válido antes de acceder
+      if (context == null) {
+        debugPrint('[PanelBar] ⚠️ Contexto null, saltando sync');
+        return;
+      }
+      
       final ctrl    = Provider.of<PlantController>(context, listen: false);
       final applied = ctrl.activePlantResources;
       debugPrint('[PanelBar] 📊 Recursos obtenidos del controller: sol=${applied.sol}, agua=${applied.agua}, fert=${applied.fertilizante}');

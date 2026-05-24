@@ -4,7 +4,7 @@ import 'package:flame/flame.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flame/game.dart';
 
-enum PlantStage { seed, bush, tree, ent }
+enum PlantStage { seed, bush, tree, ent, dead }
 
 class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
   final String plantType;
@@ -68,6 +68,8 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
         return Vector2(size.x / 2, size.y / 2+60);
       case PlantStage.ent:
         return Vector2(size.x / 2, size.y / 2+60);
+      case PlantStage.dead:
+        return Vector2(size.x / 2, size.y / 2+80);
       default:
         return Vector2.zero();
     }
@@ -83,11 +85,15 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
         return Vector2.all(0.6);
       case PlantStage.ent:
         return Vector2.all(0.7);
+      case PlantStage.dead:
+        return Vector2.all(0.25);
     }
   }
 
   PlantStage _intToStage(int stage) {
     switch (stage) {
+      case 0:
+        return PlantStage.dead;
       case 1:
         return PlantStage.seed;
       case 2:
@@ -154,6 +160,9 @@ class PlantComponent extends SpriteAnimationGroupComponent<PlantStage> {
 
       case PlantStage.ent:
         return _loadAnim('$folder/fase4_ss.png', 18);
+
+      case PlantStage.dead:
+        return _loadAnim('$folder/fase0_ss.png', 18);
     }
   }
 

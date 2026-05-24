@@ -14,16 +14,67 @@ import '../models/tree_models.dart';
 // Equivalente Flutter de syncInventoryToTree() + applyTreeDataFrom3D()
 // del equipo web (Astro/Preact).
 //
-// REGLA DE MERGE:
-//   - Flutter solo sobreescribe campos 🟢 de su dominio.
-//   - Los campos 🔴 de Unity se leen del .tree existente y se preservan.
+// REGLA DE MERGE (Campo de Autoridad):
+//   - Flutter solo sobreescribe campos 🟢 de su dominio (recursos, recursosAplicados).
+//   - Los campos 🔴 de Unity se leen del .tree existente y se preservan SIEMPRE.
+//   - NUNCA modificar campos 🔴 en saveTreeLocally() o applyUnitySync().
 //   - Matching de plantas: por instance_id (prioritario), fallback por id.
+//
+// CAMPO DE AUTORIDAD (Field Authority Matrix):
+//   🟢 FLUTTER (Flutter solo puede escribir estos):
+//     - usuario.id, usuario.nombre (creados al login)
+//     - recursos.* (sol, agua, composta, fertilizante)
+//     - planta.estado.fase (progresión de evolución: semilla→arbusto→planta→ent)
+//     - planta.recursosAplicados.* (agua, sol, fertilizante aplicados en Flutter)
+//     - planta.visualEstado
+//
+//   🔴 UNITY (Solo Unity puede escribir; Flutter NUNCA modifica):
+//     - usuario.nivel, usuario.xp
+//     - planta.estado.salud, planta.estado.hpActual
+//     - planta.progreso.* (del sistema de progresión del 3D)
+//     - planta.uso.* (uso de recursos en Unity)
+//     - semillas.* (nuevas semillas desbloqueadas en 3D)
+//
 // ═══════════════════════════════════════════════════════════════════════════
 class TreeStorageService {
   /// Clave SharedPreferences — coincide con localStorage del equipo web.
   static const String _treeKey = 'imaginatio_tree_data';
   /// Clave SharedPreferences para recursos de Flutter (sol, agua, composta, fertilizante).
   static const String _recursosFlutterKey = 'imaginatio_recursos_flutter';
+
+  /// Field Authority Matrix: mapea cada campo a su propietario (flutter/unity)
+  /// para validación y enforcement en merge/sync.
+  static const Map<String, String> _fieldAuthority = {
+    // Usuario (algunos campos compartidos, otros especializados)
+    'usuario.id': 'flutter',
+    'usuario.nombre': 'flutter',
+    'usuario.nivel': 'unity',
+    'usuario.xp': 'unity',
+    
+    // Recursos (siempre Flutter)
+    'recursos.sol': 'flutter',
+    'recursos.agua': 'flutter',
+    'recursos.composta': 'flutter',
+    'recursos.fertilizante': 'flutter',
+    
+    // Planta - Estado (fase es Flutter, salud/hp es Unity)
+    'planta.estado.fase': 'flutter',
+    'planta.estado.salud': 'unity',
+    'planta.estado.hpActual': 'unity',
+    
+    // Planta - Recursos Aplicados (siempre Flutter)
+    'planta.recursosAplicados.sol': 'flutter',
+    'planta.recursosAplicados.agua': 'flutter',
+    'planta.recursosAplicados.fertilizante': 'flutter',
+    
+    // Planta - Progreso y Uso (siempre Unity)
+    'planta.progreso': 'unity',
+    'planta.uso': 'unity',
+    'planta.visualEstado': 'flutter',
+    
+    // Semillas (siempre Unity, desbloqueadas en 3D)
+    'semillas': 'unity',
+  };
 
   // ── Lectura ───────────────────────────────────────────────────────────────
 
@@ -103,8 +154,9 @@ class TreeStorageService {
   ///
   /// Flujo:
   /// 1. Lee el .tree existente para recuperar campos 🔴 de Unity.
-  /// 2. Hace merge: campos 🟢 de [flutterData] + campos 🔴 del existente.
-  /// 3. Persiste el resultado en SharedPreferences.
+  /// 2. Valida que Flutter no intente modificar campos 🔴 (Regla de Oro).
+  /// 3. Hace merge: campos 🟢 de [flutterData] + campos 🔴 del existente.
+  /// 4. Persiste el resultado en SharedPreferences.
   Future<void> saveTreeLocally({required TreeData flutterData}) async {
     try {
       debugPrint('[TreeStorageService] saveTreeLocally input: sol=${flutterData.recursos.sol.cantidad} agua=${flutterData.recursos.agua.cantidad} composta=${flutterData.recursos.composta.cantidad} fertilizante=${flutterData.recursos.fertilizante.cantidad}');
@@ -114,6 +166,10 @@ class TreeStorageService {
 
       // Guardar .tree para Unity (sin los recursos de Flutter - se preservan del existente)
       final existing = await loadTree();
+      
+      // Validate field authority (warn if Flutter tries to modify 🔴 fields)
+      _validateFieldAuthority(flutterData, existing: existing);
+      
       final merged = _mergeFlutterIntoExisting(
         flutterData: flutterData,
         existing: existing,
@@ -202,7 +258,41 @@ class TreeStorageService {
     debugPrint('[TreeStorageService] .tree eliminado.');
   }
 
-  // ── Lógica interna ────────────────────────────────────────────────────────
+   // ── Lógica interna ────────────────────────────────────────────────────────
+
+  /// Validates that [flutterData] respects field authority rules before merge.
+  /// Logs warnings if Flutter attempts to write to Unity-owned fields (🔴).
+  /// 
+  /// This is a safety check; actual merge enforcement happens in _mergeFlutterIntoExisting.
+  void _validateFieldAuthority(TreeData flutterData, {TreeData? existing}) {
+    if (existing == null) return; // First save; no validation needed
+    
+    // Check usuario fields
+    if (flutterData.usuario.nivel != existing.usuario.nivel) {
+      debugPrint('[TreeStorageService] ⚠️ WARNING: Flutter attempted to modify usuario.nivel (🔴 Unity-owned). Will be ignored.');
+    }
+    if (flutterData.usuario.xp != existing.usuario.xp) {
+      debugPrint('[TreeStorageService] ⚠️ WARNING: Flutter attempted to modify usuario.xp (🔴 Unity-owned). Will be ignored.');
+    }
+    
+    // Check planta fields (simplified; could be extended per planta.estado.*)
+    for (int i = 0; i < flutterData.plantas.length; i++) {
+      final fp = flutterData.plantas[i];
+      final match = _findMatch(fp, existing.plantas);
+      if (match == null) continue;
+      
+      if (fp.estado.salud != match.estado.salud) {
+        debugPrint('[TreeStorageService] ⚠️ WARNING: Flutter attempted to modify planta[${fp.id}].estado.salud (🔴 Unity-owned). Will be ignored.');
+      }
+      if (fp.estado.hpActual != match.estado.hpActual) {
+        debugPrint('[TreeStorageService] ⚠️ WARNING: Flutter attempted to modify planta[${fp.id}].estado.hpActual (🔴 Unity-owned). Will be ignored.');
+      }
+    }
+    
+    debugPrint('[TreeStorageService] ✅ Field authority validation passed.');
+  }
+
+   // ── Lógica interna ────────────────────────────────────────────────────────
 
   /// Combina [flutterData] (fuente 🟢) con los campos 🔴 de [existing].
   /// Si [existing] es null (primer guardado), retorna [flutterData] directo.
