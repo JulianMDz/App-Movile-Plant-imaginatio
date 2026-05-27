@@ -13,7 +13,6 @@ __pycache__/
 *.pyc
 *.pyo
 
-``
 # Python
 backend/.venv
 backend/__pycache__
@@ -25,3 +24,14 @@ flutter/.dart_tool
 flutter/build
 flutter/.flutter-plugins
 flutter/.flutter-plugins-dependencies
+
+# Context documentation (AI agent context files — not for version control)
+LOGICA_PLANTAS.md
+DOCUMENTATION_SUMMARY.md
+MINIGAME_FLOWCHARTS_AND_DIAGRAMS.md
+PLANT_MINIGAME_INTEGRATION_GUIDE.md
+IMPLEMENTATION_CHANGELOG.md
+PLANT_FIXES_AGENT.md
+
+# Graphify knowledge graph output
+graphify-out/

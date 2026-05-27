@@ -2,7 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
 class Panel_title extends SpriteComponent  {
-   late TextComponent textComp;
+  late TextComponent textComp;
   @override
   Future<void> onLoad() async {
     // Cargar la imagen

@@ -8,14 +8,14 @@ class Panel_resource_info extends SpriteComponent  {
     // Cargar la imagen
     sprite = await Sprite.load('Paneles/Panel_AvisoPlanta_01.png');
 
-    size = sprite!.srcSize/2.5;    
+    size = sprite!.srcSize/3.5;    
 
     textComp = TextComponent(
-      text: 'Necestio algo',
+      text: 'Necesito algo...',
       textRenderer: TextPaint(
         style: const TextStyle(
           color: Colors.white, 
-          fontSize: 10,
+          fontSize: 9,
           fontFamily: 'Press Start 2P',
         ),
         

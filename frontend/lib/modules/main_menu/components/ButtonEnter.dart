@@ -1,5 +1,5 @@
 import 'package:flame/components.dart';
-import 'package:flame/events.dart'; // este sí es el correcto
+import 'package:flame/events.dart';
 import 'package:flame/flame.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
@@ -7,11 +7,12 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+import 'package:frontend/core/audio.dart';
 
-class ButtonAction extends SpriteButtonComponent {
+class ButtonEnter extends SpriteButtonComponent {
   late TextComponent textComp;
 
-  ButtonAction({required void Function() onPressed})
+  ButtonEnter({required void Function() onPressed})
       : super(
        size: Vector2.zero(),
        button: null, 
@@ -20,8 +21,8 @@ class ButtonAction extends SpriteButtonComponent {
 
   @override
   Future<void> onLoad() async {
-    final normalImage = await Flame.images.load('Botones/Boton_Accion_01.png');
-    final pressedImage = await Flame.images.load('Botones/Boton_Accion_02.png');
+    final normalImage = await Flame.images.load('Botones/Boton_General_01a.png');
+    final pressedImage = await Flame.images.load('Botones/Boton_General_01b.png');
 
     button = Sprite(normalImage);
     buttonDown = Sprite(pressedImage);
@@ -55,6 +56,7 @@ class ButtonAction extends SpriteButtonComponent {
   @override
   void onTapUp(TapUpEvent event) {
     super.onTapUp(event);
+    AudioManager.click();
     scale = Vector2.all(0.51);
   }
 

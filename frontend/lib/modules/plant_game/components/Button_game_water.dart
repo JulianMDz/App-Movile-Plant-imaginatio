@@ -17,6 +17,6 @@ class Button_water_game extends SpriteButtonComponent {
     button = await Sprite.load('Botones/Boton_MinijuegoAgua_02.png');
     buttonDown = await Sprite.load('Botones/Boton_MinijuegoAgua_01.png');
 
-    size = button.srcSize/2.5; 
+    size = button.srcSize/3; 
   }
 }

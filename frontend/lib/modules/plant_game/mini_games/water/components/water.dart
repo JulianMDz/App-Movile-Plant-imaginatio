@@ -1,5 +1,4 @@
 import 'dart:ui';
-
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 
@@ -9,7 +8,6 @@ class ButtonResourceWater extends PositionComponent with TapCallbacks {
   late Sprite disabled;
 
   int state = 0; // 0 = normal, 1 = pressed, 2 = disabled
-
   final void Function()? onPressed;
 
   ButtonResourceWater({this.onPressed});
@@ -26,7 +24,6 @@ class ButtonResourceWater extends PositionComponent with TapCallbacks {
   @override
   void render(Canvas canvas) {
     Sprite current;
-
     if (state == 1) {
       current = pressed;
     } else if (state == 2) {
@@ -34,21 +31,20 @@ class ButtonResourceWater extends PositionComponent with TapCallbacks {
     } else {
       current = normal;
     }
-
     current.render(canvas, size: size);
   }
 
   @override
   void onTapDown(TapDownEvent event) {
-    if (state == 2) return; // disabled no responde
-    state = 1;
+    if (state == 2) return; // Si está deshabilitado, no hace nada
+    state = 1; // Cambia a presionado
+    onPressed?.call(); // Llama a la función que cuenta los clics
   }
 
   @override
   void onTapUp(TapUpEvent event) {
     if (state == 2) return;
-    state = 0;
-    onPressed?.call();
+    state = 0; // Vuelve al estado normal al soltar
   }
 
   @override

@@ -17,6 +17,6 @@ class Button_sun_game extends SpriteButtonComponent {
     button = await Sprite.load('Botones/Boton_MinijuegoSol_02.png');
     buttonDown = await Sprite.load('Botones/Boton_MinijuegoSol_01.png');
 
-    size = button.srcSize/2.5; 
+    size = button.srcSize/3; 
   }
 }
