@@ -320,7 +320,7 @@ class TreeStorageService {
     return TreeData(
       version: 2,
       usuario: mergedUsuario,
-      recursos: existing.recursos,
+      recursos: flutterData.recursos, // 🟢 Flutter owns recursos — use directly
       plantas: mergedPlantas,
       semillas: existing.semillas,
     );

@@ -63,9 +63,15 @@ class PlantGameScreen extends FlameGame {
   late RowComponent _rowDown;
 
   bool _isLayoutReady = false;
-  String _lastPlantType = ''; // Para detectar cambios de planta activa
+  String _lastPlantType = '';
   int _lastPlantStage = 2;
-  String _lastPlantFase = ''; // Para detectar cambios de fase (evolución)
+  String _lastPlantFase = '';
+
+  // State animation tracking — prevents flicker on every notifyListeners()
+  String _currentStateAnim = 'none'; // 'none' | 'danger' | 'critical' | 'dead'
+  Animation_critical? _criticalAnim;
+  Animation_danger? _dangerAnim;
+  Animation_tombstone? _tombstoneAnim;
 
   PlantGameScreen(this.context);
    @override
@@ -203,10 +209,6 @@ class PlantGameScreen extends FlameGame {
           padding: EdgeInsets.only(right: 10),
           child: inventaryButton,
         ),
-        PaddingComponent(
-          padding: EdgeInsets.only(right: 10),
-          child: inventaryButton,
-        ),
         buttonAudio,
       ],
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -327,6 +329,11 @@ class PlantGameScreen extends FlameGame {
 
     _isLayoutReady = true;
     _applyLayout(size);
+
+    // Sync initial state after all components are ready.
+    // loadCurrentTree() fires notifyListeners() before the listener is registered,
+    // so this call ensures particles/tombstone are correct on app open.
+    _onControllerAnimationChange();
   }
 
   @override
@@ -359,6 +366,7 @@ class PlantGameScreen extends FlameGame {
   }
 
   void _onControllerAnimationChange() {
+    if (!_isLayoutReady) return;
     debugPrint('[PlantScreen] 🔔 _onControllerAnimationChange ejecutado (notifyListeners llamado)');
     try {
       if (context == null) return;
@@ -367,13 +375,17 @@ class PlantGameScreen extends FlameGame {
     // Obtener planta activa (puede ser null si está muerta)
     final plant = controller.activePlant;
     
-    // También verificar si hay plantas muertas en el árbol para mostrar animación
+    // Si activePlant es null, buscar la primera planta muerta como fallback visual
     final hasDeadPlant = controller.currentTree?.plantas.any((p) => p.estado.fase == 'muerto') ?? false;
     debugPrint('[PlantScreen] 🔍 Plantas en el árbol: ${controller.currentTree?.plantas.map((p) => '${p.id}:${p.estado.fase}').join(', ')}');
     debugPrint('[PlantScreen] 🔍 hasDeadPlant: $hasDeadPlant, activePlant es null: ${plant == null}');
-    
-    // Si activePlant es null pero hay una planta muerte, usar la planta muerta
-    final deadPlant = hasDeadPlant ? controller.currentTree?.plantas.firstWhere((p) => p.estado.fase == 'muerto', orElse: () => plant!) : null;
+
+    TreePlanta? deadPlant;
+    if (hasDeadPlant) {
+      try {
+        deadPlant = controller.currentTree?.plantas.firstWhere((p) => p.estado.fase == 'muerto');
+      } catch (_) {}
+    }
     final displayPlant = plant ?? deadPlant;
     
     if (displayPlant == null) {
@@ -397,17 +409,19 @@ class PlantGameScreen extends FlameGame {
     if (plantType != _lastPlantType || fase != _lastPlantFase) {
       _lastPlantType = plantType;
       _lastPlantFase = fase;
-      
+
       // Determinar el stage según la fase
       int newStage = 2;
       if (fase == 'semilla') newStage = 1;
       else if (fase == 'planta') newStage = 3;
       else if (fase == 'ent') newStage = 4;
-      else if (fase == 'muerto') newStage = 0; // Stage 0 = fase dead
-      
-      // Cargar bajo demanda las imágenes de la nueva planta
+      else if (fase == 'muerto') newStage = 0;
+
       _plant.updatePlant(plantType, newStage);
       debugPrint('[PlantScreen] 🔄 Planta cambiada a: $plantType (fase: $fase, stage: $newStage)');
+
+      // Reset state anim so the new plant's state is evaluated fresh
+      _currentStateAnim = 'none';
     }
 
     if (controller.showEvolutionAnimation) {
@@ -422,43 +436,48 @@ class PlantGameScreen extends FlameGame {
       debugPrint('[PlantScreen] 🌱 Animación de evolución reproducida');
     }
 
-    // Eliminar animaciones de peligro/crítico anteriores (muerte no es animación overlay)
-    final existingStateAnims = children.where((c) => 
-      c is Animation_critical || c is Animation_danger
-    ).toList();
-    for (final anim in existingStateAnims) {
-      anim.removeFromParent();
+    // Determine target state animation
+    String targetState = 'none';
+    if (fase == 'muerto') {
+      targetState = 'dead';
+    } else if (sol <= 2 || agua <= 2) {
+      targetState = 'critical';
+    } else if (sol <= 4 || agua <= 4) {
+      targetState = 'danger';
     }
-    debugPrint('[PlantScreen] 🗑️ Eliminadas ${existingStateAnims.length} animaciones de peligro/crítico anteriores');
 
-    // Muerte es cambio de fase (no animación overlay), solo peligro y crítico son overlays
-    // PRIORIDAD 1: CRÍTICO (sol <= 2 O agua <= 2)
-    if (sol <= 2 || agua <= 2) {
-      final anim = Animation_critical(
-        plantType,
-        Vector2(size.x / 2, size.y * 0.3),
-      )
-        ..anchor = Anchor.center
-        ..removeOnFinish = true;
-      add(anim);
-      controller.clearAnimationFlags();
-      debugPrint('[PlantScreen] ⚠️ Animación de CRÍTICO mostrada (sol=$sol, agua=$agua)');
-    }
-    // PRIORIDAD 2: PELIGRO (sol <= 4 O agua <= 4, pero no crítico)
-    else if (sol <= 4 || agua <= 4) {
-      final anim = Animation_danger(
-        plantType,
-        Vector2(size.x / 2, size.y * 0.3),
-      )
-        ..anchor = Anchor.center
-        ..removeOnFinish = true;
-      add(anim);
-      controller.clearAnimationFlags();
-      debugPrint('[PlantScreen] ⚠️ Animación de PELIGRO mostrada (sol=$sol, agua=$agua)');
-    }
-    // Estado normal o muerto: no hay animación overlay (muerte es cambio de fase)
-    else {
-      debugPrint('[PlantScreen] ✅ Estado normal/muerto - sin animación overlay (sol=$sol, agua=$agua, fase=$fase)');
+    // Only swap animations when state category changes — prevents flicker on every notify
+    if (targetState != _currentStateAnim) {
+      _criticalAnim?.removeFromParent();
+      _dangerAnim?.removeFromParent();
+      _tombstoneAnim?.removeFromParent();
+      _criticalAnim = null;
+      _dangerAnim = null;
+      _tombstoneAnim = null;
+
+      switch (targetState) {
+        case 'critical':
+          _criticalAnim = Animation_critical(plantType, Vector2(size.x / 2, size.y * 0.3))
+            ..anchor = Anchor.center;
+          add(_criticalAnim!);
+          debugPrint('[PlantScreen] ⚠️ Animación CRÍTICO activada (sol=$sol, agua=$agua)');
+          break;
+        case 'danger':
+          _dangerAnim = Animation_danger(plantType, Vector2(size.x / 2, size.y * 0.3))
+            ..anchor = Anchor.center;
+          add(_dangerAnim!);
+          debugPrint('[PlantScreen] ⚠️ Animación PELIGRO activada (sol=$sol, agua=$agua)');
+          break;
+        case 'dead':
+          _tombstoneAnim = Animation_tombstone(plantType, Vector2(size.x / 2, size.y / 2))
+            ..anchor = Anchor.center;
+          add(_tombstoneAnim!);
+          debugPrint('[PlantScreen] 💀 Animación LÁPIDA activada');
+          break;
+        default:
+          debugPrint('[PlantScreen] ✅ Estado normal — sin animación de estado (sol=$sol, agua=$agua, fase=$fase)');
+      }
+      _currentStateAnim = targetState;
     }
 
     controller.clearAnimationFlags();

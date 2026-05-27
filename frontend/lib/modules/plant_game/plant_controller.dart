@@ -108,8 +108,6 @@ class PlantController extends ChangeNotifier {
     return _minResourcesByPhase[fase] ?? {'sol': 1, 'agua': 1, 'fertilizante': 0};
   }
 
-  // Flags para notify de animaciones
-
   // ── Clasificación de plantas por nombre de carpeta ───────────────────────────
   // Mapea nombres de carpetas de Unity al tipo de planta
   static String _getPlantType(String folderName) {
@@ -149,10 +147,8 @@ class PlantController extends ChangeNotifier {
 
   /// Retorna el tipo de planta basado en el nombre/id de la carpeta
   String getPlantType(String folderName) => _getPlantType(folderName);
+
   bool _showEvolutionAnimation = false;
-  bool _showDeathAnimation = false;
-  bool _showCriticalAnimation = false;
-  bool _showDangerAnimation = false;
   String? _plantUpdateEvent;
   String? get plantUpdateEvent => _plantUpdateEvent;
 
@@ -311,14 +307,6 @@ class PlantController extends ChangeNotifier {
       debugPrint(
         '[PlantController] 🚨 Planta activa ${plant.id} ha muerto por falta de recursos (fase=muerto).'
       );
-    } else {
-      final sol = plant.recursosAplicados.sol;
-      final agua = plant.recursosAplicados.agua;
-      if (sol <= 2 || agua <= 2) {
-        _showCriticalAnimation = true;
-      } else if (sol <= 4 || agua <= 4) {
-        _showDangerAnimation = true;
-      }
     }
 
     // Actualizar lastInteraction al tiempo actual (fakeNow si está en modo debug)
@@ -621,18 +609,12 @@ class PlantController extends ChangeNotifier {
 
   // ── Sistema de Evolución ─────────────────────────────────────────────────────
 
-  /// Retorna true si hay animación de evolución pendientes
+  /// Retorna true si hay animación de evolución pendiente
   bool get showEvolutionAnimation => _showEvolutionAnimation;
-  bool get showDeathAnimation => _showDeathAnimation;
-  bool get showCriticalAnimation => _showCriticalAnimation;
-  bool get showDangerAnimation => _showDangerAnimation;
 
-  /// Limpia los flags de animación
+  /// Limpia el flag de evolución tras consumirlo en la UI
   void clearAnimationFlags() {
     _showEvolutionAnimation = false;
-    _showDeathAnimation = false;
-    _showCriticalAnimation = false;
-    _showDangerAnimation = false;
   }
 
   /// Obtiene los requisitos para la siguiente etapa de la planta activa
@@ -769,12 +751,7 @@ class PlantController extends ChangeNotifier {
 
     if (sol <= 0 || agua <= 0) {
       plant.estado.fase = 'muerto';
-      _showDeathAnimation = true;
       debugPrint('[PlantController] 💀 Planta murió');
-    } else if (sol <= 2 || agua <= 2) {
-      _showCriticalAnimation = true;
-    } else if (sol <= 4 || agua <= 4) {
-      _showDangerAnimation = true;
     }
 
     notifyListeners();
