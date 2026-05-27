@@ -31,23 +31,6 @@ class Button_resource_water extends SpriteButtonComponent with HasGameRef {
     button = await Sprite.load('Botones/Boton_RecursoAgua_02.png');
     buttonDown = await Sprite.load('Botones/Boton_RecursoAgua_01.png');
     size = button.srcSize / 2.3;
-
-  onPressed = () { 
-    AudioManager.regar();
-    final animacionWater = Animation_water(
-      'pasto',
-      Vector2(gameRef.size.x, gameRef.size.y),
-    )
-      ..anchor = Anchor.center
-      ..position = Vector2(
-        gameRef.size.x / 2,
-        gameRef.size.y / 2,
-      );
-    gameRef.add(animacionWater);
-  };
-
-     final text = TextComponent(
-      text: "40",);
        // ejemplo
     _countText = TextComponent(
       text: _stockText(),
@@ -96,6 +79,8 @@ class Button_resource_water extends SpriteButtonComponent with HasGameRef {
     final controller = Provider.of<PlantController>(context, listen: false);
     final success = await controller.spendWater();
     if (!success) return;
+
+    AudioManager.regar();
 
     final plantType = controller.activePlant?.id ?? 'pasto';
 

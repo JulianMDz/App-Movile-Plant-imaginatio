@@ -33,28 +33,7 @@ class Button_resource_sun extends SpriteButtonComponent with HasGameRef {
     button = await Sprite.load('Botones/Boton_RecursoSol_02.png');
     buttonDown = await Sprite.load('Botones/Boton_RecursoSol_01.png');
 
-    size = button.srcSize/2.3;  
-
-  onPressed = () { 
-    AudioManager.sol();
-    final animacionSun = Animation_sun(
-      'pasto',
-      Vector2(gameRef.size.x, gameRef.size.y),
-    )
-      ..anchor = Anchor.center
-      ..position = Vector2(
-        gameRef.size.x / 2,
-        gameRef.size.y / 2,
-      );
-
-    gameRef.add(animacionSun);
-  };
-
-    
-    final text = TextComponent(
-  text: "40",
-)
-  ..size = button.srcSize / 2.3;
+    size = button.srcSize / 2.3;
     
     // Contador de stock disponible
     _countText = TextComponent(
@@ -105,12 +84,11 @@ class Button_resource_sun extends SpriteButtonComponent with HasGameRef {
   void _onTap() async {
     final controller = Provider.of<PlantController>(context, listen: false);
     final success = await controller.spendSun();
-    if (!success) return; // sin stock — no hacer nada
+    if (!success) return;
 
-    // Obtener tipo de planta activa para la animación
+    AudioManager.sol();
+
     final plantType = controller.activePlant?.id ?? 'pasto';
-
-    // Lanzar animación visual
     final anim = Animation_sun(plantType, Vector2(gameRef.size.x, gameRef.size.y))
       ..anchor = Anchor.center
       ..position = Vector2(gameRef.size.x / 2, gameRef.size.y / 2);

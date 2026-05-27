@@ -135,28 +135,28 @@ class PlantGameScreen extends FlameGame {
 
     final sunGameButton = Button_sun_game(
       onPressed: () {
-        AudioManager.recolectarSoles();
-        AudioManager.miniGames();
         if (!controller.canPlaySunGame()) {
           final remaining = controller.getSunGameRemainingCooldown();
           final timeStr = controller.formatRemainingCooldown(remaining);
           _showCooldownMessage('Sol', timeStr);
           return;
         }
+        AudioManager.recolectarSoles();
+        AudioManager.miniGames();
         add(SunOverlay(context: context));
       },
     );
 
     final waterGameButton = Button_water_game(
       onPressed: () {
-        AudioManager.recolectarAgua();
-        AudioManager.miniGames();
         if (!controller.canPlayWaterGame()) {
           final remaining = controller.getWaterGameRemainingCooldown();
           final timeStr = controller.formatRemainingCooldown(remaining);
           _showCooldownMessage('Agua', timeStr);
           return;
         }
+        AudioManager.recolectarAgua();
+        AudioManager.miniGames();
         add(WaterOverlay(context: context));
       },
     );
@@ -164,14 +164,14 @@ class PlantGameScreen extends FlameGame {
     final compostGameButton = Button_compost_game(
       context: context,
       onPressed: () {
-        AudioManager.recolectarComposta();
-        AudioManager.miniGames();
         if (!controller.canPlayCompostGame()) {
           final remaining = controller.getCompostGameRemainingCooldown();
           final timeStr = controller.formatRemainingCooldown(remaining);
           _showCooldownMessage('Composta', timeStr);
           return;
         }
+        AudioManager.recolectarComposta();
+        AudioManager.miniGames();
         add(CompostOverlay(context: context));
       },
     );
@@ -441,7 +441,16 @@ class PlantGameScreen extends FlameGame {
       _plant.updatePlant(plantType, newStage);
       debugPrint('[PlantScreen] 🔄 Planta cambiada a: $plantType (fase: $fase, stage: $newStage)');
 
-      // Reset state anim so the new plant's state is evaluated fresh
+      // Reset state anim so the new plant's state is evaluated fresh.
+      // Must remove components here too — if new state is 'none' the swap
+      // block below won't run (targetState == _currentStateAnim) and the
+      // old animation would stay on screen forever.
+      _criticalAnim?.removeFromParent();
+      _dangerAnim?.removeFromParent();
+      _tombstoneAnim?.removeFromParent();
+      _criticalAnim = null;
+      _dangerAnim = null;
+      _tombstoneAnim = null;
       _currentStateAnim = 'none';
     }
 

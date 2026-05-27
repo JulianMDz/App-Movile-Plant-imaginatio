@@ -30,21 +30,7 @@ class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
     button = await Sprite.load('Botones/Boton_RecursoAbono_02.png');
     buttonDown = await Sprite.load('Botones/Boton_RecursoAbono_01.png');
 
-    size = button.srcSize/2.3;  
-
-  onPressed = () { 
-    AudioManager.abono();
-    final animacionCompost = Animation_compost(
-      'pasto',
-      Vector2(gameRef.size.x, gameRef.size.y),
-    )
-      ..anchor = Anchor.center
-      ..position = Vector2(
-        gameRef.size.x / 2,
-        gameRef.size.y / 2,
-      );
-    gameRef.add(animacionCompost);
-  };
+    size = button.srcSize / 2.3;
 
     _countText = TextComponent(
       text: _stockText(),
@@ -92,9 +78,10 @@ class Button_resource_compost extends SpriteButtonComponent with HasGameRef {
 
   void _onTap() async {
     final controller = Provider.of<PlantController>(context, listen: false);
-    // Gastar 1 fertilizante del inventario
     final success = await controller.spendCompost(amount: 1);
     if (!success) return;
+
+    AudioManager.abono();
 
     final plantType = controller.activePlant?.id ?? 'pasto';
 
