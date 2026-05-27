@@ -227,27 +227,26 @@ class PlantController extends ChangeNotifier {
   void _ensureDefaultPlant() {
     if (_currentTree == null) return;
 
-    if (_currentTree!.plantas.isNotEmpty) return;
+    // Run when there are no plants at all OR all existing plants are dead
+    final aliveCount = _currentTree!.plantas
+        .where((p) => p.desbloqueada && p.estado.fase != 'muerto')
+        .length;
+    if (aliveCount > 0) return;
 
-    final plantsToCreate = [
-      ('pasto', 'semilla'),
-    ];
-
-    for (int i = 0; i < plantsToCreate.length; i++) {
-      final (id, fase) = plantsToCreate[i];
-      final instanceId = '${_uuid.v4()}_$i';
-      final plant = TreePlanta(
-        id: id,
-        instanceId: instanceId,
-        subid: id,
-        desbloqueada: true,
-        estado: TreeEstado(fase: fase),
-        recursosAplicados: TreeRecursosAplicados(sol: 3, agua: 3, fertilizante: 1),
-      );
-      _currentTree!.plantas.add(plant);
-      _authStorage.savePlantLastInteraction(instanceId, DateTime.now().toUtc());
-    }
-    debugPrint('[PlantController] 🌱 ${plantsToCreate.length} plantas creadas para testing de selección');
+    final instanceId = _uuid.v4();
+    final plant = TreePlanta(
+      id: 'pasto',
+      instanceId: instanceId,
+      subid: 'pasto',
+      desbloqueada: true,
+      estado: TreeEstado(fase: 'semilla'),
+      // Minimum resources to survive — user must interact immediately
+      recursosAplicados: TreeRecursosAplicados(sol: 1, agua: 1, fertilizante: 0),
+    );
+    _currentTree!.plantas.add(plant);
+    _activePlantIndex = 0;
+    _authStorage.savePlantLastInteraction(instanceId, DateTime.now().toUtc());
+    debugPrint('[PlantController] 🌱 Nueva planta pasto creada (sin plantas vivas disponibles)');
   }
 
   // ── Decay pasivo (dominio 🟢 Flutter) ─────────────────────────────────
@@ -304,9 +303,8 @@ class PlantController extends ChangeNotifier {
 
     if (plant.recursosAplicados.agua <= 0 || plant.recursosAplicados.sol <= 0) {
       plant.estado.fase = 'muerto';
-      debugPrint(
-        '[PlantController] 🚨 Planta activa ${plant.id} ha muerto por falta de recursos (fase=muerto).'
-      );
+      debugPrint('[PlantController] 🚨 Planta ${plant.id} muerta por decay.');
+      _ensureDefaultPlant(); // Respawn pasto if no alive plants remain
     }
 
     // Actualizar lastInteraction al tiempo actual (fakeNow si está en modo debug)
@@ -751,7 +749,8 @@ class PlantController extends ChangeNotifier {
 
     if (sol <= 0 || agua <= 0) {
       plant.estado.fase = 'muerto';
-      debugPrint('[PlantController] 💀 Planta murió');
+      debugPrint('[PlantController] 💀 Planta ${plant.id} murió.');
+      _ensureDefaultPlant(); // Respawn pasto if no alive plants remain
     }
 
     notifyListeners();
