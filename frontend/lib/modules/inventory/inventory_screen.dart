@@ -20,6 +20,10 @@ class InventoryScreen extends FlameGame with DragCallbacks {
   int _selectedPlantIndex = -1;
   List<PositionComponent> _plantSlots = [];
 
+  String? _filterCategory;
+  String? _filterStage;
+  String? _filterUrgency;
+
   // Scroll vertical
   double _scrollOffsetY = 0;
   double _maxScrollY = 0;
@@ -134,6 +138,9 @@ class InventoryScreen extends FlameGame with DragCallbacks {
       'Botones/Boton_Filtro.png',
       'Botones/Boton_General_01a.png',
       'Iconos/Icono_Semaforo_01.png',
+      'Iconos/Icono_Semaforo_02.png',
+      'Iconos/Icono_Semaforo_03.png',
+      'Iconos/Icono_Semaforo_04.png',
     ]);
 
     await AudioManager.musicaInventario();
@@ -193,6 +200,81 @@ class InventoryScreen extends FlameGame with DragCallbacks {
     return candidates;
   }
 
+  String _getPlantCategory(String plantId) {
+    final lowerId = plantId.toLowerCase();
+    if (lowerId.contains('alcaparro enano') || lowerId.contains('dividivi')) {
+      return 'xerofito';
+    }
+    if (lowerId.contains('alcaparro') || lowerId.contains('cajeto') ||
+        lowerId.contains('espino') || lowerId.contains('drago')) {
+      return 'solar';
+    }
+    if (lowerId.contains('manzano') || lowerId.contains('mangle') ||
+        lowerId.contains('sietecueros') || lowerId.contains('cedro')) {
+      return 'templado';
+    }
+    if (lowerId.contains('roble') || lowerId.contains('pino') ||
+        lowerId.contains('nogal') || lowerId.contains('duraznillo')) {
+      return 'montana';
+    }
+    if (lowerId.contains('aliso') || lowerId.contains('cedrillo') ||
+        lowerId.contains('cucharo')) {
+      return 'hidro';
+    }
+    return 'pasto';
+  }
+
+  String _getCategoryIconPath(String plantId) {
+    switch (_getPlantCategory(plantId)) {
+      case 'solar': return 'Botones/Boton_Categoría_01.png';
+      case 'xerofito': return 'Botones/Boton_Categoría_02.png';
+      case 'templado': return 'Botones/Boton_Categoría_03.png';
+      case 'montana': return 'Botones/Boton_Categoría_04.png';
+      case 'hidro': return 'Botones/Boton_Categoría_05.png';
+      default: return 'Botones/Boton_Categoría_01.png';
+    }
+  }
+
+  String _getStageIconPath(String fase) {
+    switch (fase) {
+      case 'semilla': return 'Botones/Boton_Estado_01.png';
+      case 'arbusto': return 'Botones/Boton_Estado_02.png';
+      case 'planta': return 'Botones/Boton_Estado_03.png';
+      case 'ent': return 'Botones/Boton_Estado_04.png';
+      default: return 'Botones/Boton_Estado_01.png';
+    }
+  }
+
+  String _getUrgencyIconPath(int sol, int agua) {
+    final minValue = sol < agua ? sol : agua;
+    if (minValue <= 0) return 'Botones/Boton_Urgencia_03.png';
+    if (minValue <= 3) return 'Botones/Boton_Urgencia_02.png';
+    return 'Botones/Boton_Urgencia_01.png';
+  }
+
+ String _getTrafficLightIconPath(int sol, int agua) {
+  final bool solBajo = sol < 2;
+  final bool aguaBaja = agua < 2;
+
+  // Ambos bien
+  if (!solBajo && !aguaBaja) {
+    return 'Iconos/Icono_Semaforo_01.png';
+  }
+
+  // Solo agua baja
+  if (aguaBaja && !solBajo) {
+    return 'Iconos/Icono_Semaforo_02.png';
+  }
+
+  // Solo sol bajo
+  if (solBajo && !aguaBaja) {
+    return 'Iconos/Icono_Semaforo_03.png';
+  }
+
+  // Ambos bajos
+  return 'Iconos/Icono_Semaforo_04.png';
+}
+
   // ── Cálculo de layout compartido ─────────────────────
   double _getSlotSize() {
     final double availableH = size.y - _collapsedH - _marginTop;
@@ -227,10 +309,9 @@ class InventoryScreen extends FlameGame with DragCallbacks {
     _plantSlots.clear();
 
     _controller = Provider.of<PlantController>(context, listen: false);
-
-    final plants = _controller?.plants ?? [];
+  
+    final plants = _getFilteredPlants();
     if (plants.isEmpty) {
-      _addDefaultSlots();
       return;
     }
 
@@ -255,14 +336,69 @@ class InventoryScreen extends FlameGame with DragCallbacks {
     }
   }
 
-  void _addDefaultSlots() {
-    final double slotSize = _getSlotSize();
-    final double gap = _getGap();
-    final double slotY = _marginTop + gap;
+  List<dynamic> _getFilteredPlants() {
+    final plants = _controller?.plants ?? [];
 
-    _addSlot(Vector2(_colToX(0), slotY), slotSize, slotSize, true);
-    _addSlot(Vector2(_colToX(1), slotY), slotSize, slotSize, false);
-    _addSlot(Vector2(_colToX(2), slotY), slotSize, slotSize, false);
+    return plants.where((plant) {
+
+      // -------------------------
+      // CATEGORY
+      // -------------------------
+      if (_filterCategory != null) {
+        final category = _getPlantCategory(plant.id);
+
+        if (category != _filterCategory) {
+          return false;
+        }
+      }
+
+      // -------------------------
+      // STAGE
+      // -------------------------
+      if (_filterStage != null) {
+        final fase = plant.estado.fase;
+
+        if (fase != _filterStage) {
+          return false;
+        }
+      }
+
+      // -------------------------
+      // URGENCY
+      // -------------------------
+      if (_filterUrgency != null) {
+
+        final sol = plant.recursosAplicados.sol;
+        final agua = plant.recursosAplicados.agua;
+
+        final bool solBajo = sol <= 4;
+        final bool aguaBaja = agua <= 4;
+
+        String urgency;
+
+        // TODO BIEN
+        if (!solBajo && !aguaBaja) {
+          urgency = 'normal';
+        }
+
+        // ALGUNO BAJO
+        else if (solBajo != aguaBaja) {
+          urgency = 'warning';
+        }
+
+        // AMBOS BAJOS
+        else {
+          urgency = 'critical';
+        }
+
+        if (urgency != _filterUrgency) {
+          return false;
+        }
+      }
+
+      return true;
+
+    }).toList();
   }
 
   void _addPlantSlot(
@@ -284,9 +420,9 @@ class InventoryScreen extends FlameGame with DragCallbacks {
 
     if (isAlive) {
       final plantId = plant.id ?? 'pasto';
-      final fase = plant.estado?.fase ?? 'arbusto';
+      final plantPhase = plant.estado?.fase ?? 'arbusto';
       final displayName = _getPlantDisplayName(plantId);
-      final imagePath = _getPlantImagePath(plantId, fase);
+      final imagePath = _getPlantImagePath(plantId, plantPhase);
 
       slot.add(TextComponent(
         text: displayName,
@@ -337,18 +473,14 @@ class InventoryScreen extends FlameGame with DragCallbacks {
       final recursos = plant.recursosAplicados;
       final sol = recursos?.sol ?? 0;
       final agua = recursos?.agua ?? 0;
-
-      String estadoIcon = 'Botones/Boton_Estado_02.png';
-      if (sol <= 0 || agua <= 0) {
-        estadoIcon = 'Botones/Boton_Urgencia_01.png';
-      } else if (sol <= 3 || agua <= 3) {
-        estadoIcon = 'Botones/Boton_Estado_03.png';
-      }
+      final categoryIcon = _getCategoryIconPath(plantId);
+      final stageIcon = _getStageIconPath(plantPhase);
+      final trafficLightIcon = _getTrafficLightIconPath(sol, agua);
 
       final iconPaths = [
-        'Botones/Boton_Categoría_01.png',
-        estadoIcon,
-        'Iconos/Icono_Semaforo_01.png',
+        categoryIcon,
+        stageIcon,
+        trafficLightIcon,
       ];
 
       final List<double> iconWidths = iconPaths.map((path) {
@@ -403,111 +535,43 @@ class InventoryScreen extends FlameGame with DragCallbacks {
   }
 
   void _onPlantSelected(int index) {
-    setState(() {
-      _selectedPlantIndex = index;
-    });
+
+    _selectedPlantIndex = index;
     _controller?.setActivePlant(index);
     _loadPlantSlots();
     debugPrint('[Inventory] Planta seleccionada: $index');
   }
 
-  void setState(VoidCallback fn) {
-    fn();
-    children
-        .whereType<FilterPanelComponent>()
-        .forEach((c) => c.removeFromParent());
-    children
-        .whereType<CloseButtonComponent>()
-        .forEach((c) => c.removeFromParent());
+  void applyCategoryFilter(String? cat) {
 
-    add(FilterPanelComponent(gameRef: this));
-
-    final closeBtn = CloseButtonComponent(context);
-    closeBtn.position = Vector2(size.x - 108, 32);
-    closeBtn.size = Vector2(40, 40);
-    closeBtn.priority = 20;
-    add(closeBtn);
-  }
-
-  void _addSlot(Vector2 pos, double slotW, double slotH, bool full) {
-    final slot = PositionComponent()
-      ..position = pos
-      ..size = Vector2(slotW, slotH);
-
-    slot.add(SpriteComponent()
-      ..sprite = Sprite(images.fromCache(
-        full
-            ? 'Inventario/Panel_InvEspacio_01.png'
-            : 'Inventario/Panel_InvEspacio_02.png',
-      ))
-      ..size = Vector2(slotW, slotH));
-
-    if (full) {
-      slot.add(TextComponent(
-        text: 'PASTO',
-        anchor: Anchor.topCenter,
-        position: Vector2(slotW / 2, slotH * 0.16),
-        textRenderer: TextPaint(
-          style: const TextStyle(
-            fontSize: 10,
-            fontFamily: 'Press Start 2P',
-            color: Color(0xFF3E2A1F),
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ));
-
-      final img = images.fromCache('Planta/Pasto/fase2_ss.png');
-      final double plantSize = slotW * 0.32;
-      slot.add(SpriteComponent()
-        ..sprite = Sprite(
-          img,
-          srcPosition: Vector2(0, 0),
-          srcSize: Vector2(img.width / 18, img.height.toDouble()),
-        )
-        ..size = Vector2(plantSize, plantSize)
-        ..anchor = Anchor.center
-        ..position = Vector2(slotW / 2, slotH * 0.50));
-
-      final double iconH = slotH * 0.16;
-      final double iconY = slotH - iconH - slotH * 0.13;
-      const double iconGap = 6.0;
-
-      final iconPaths = [
-        'Botones/Boton_Categoría_01.png',
-        'Botones/Boton_Estado_02.png',
-        'Iconos/Icono_Semaforo_01.png',
-      ];
-
-      final List<double> iconWidths = iconPaths.map((path) {
-        final iconImg = images.fromCache(path);
-        final double ratio = iconImg.width / iconImg.height;
-        return iconH * ratio;
-      }).toList();
-
-      final double totalIconW = iconWidths.fold(0.0, (sum, w) => sum + w) +
-          iconGap * (iconPaths.length - 1);
-      double ix = (slotW - totalIconW) / 2;
-
-      for (int i = 0; i < iconPaths.length; i++) {
-        final iconImg = images.fromCache(iconPaths[i]);
-        final double ratio = iconImg.width / iconImg.height;
-        final double iconW = iconH * ratio;
-        slot.add(SpriteComponent()
-          ..sprite = Sprite(images.fromCache(iconPaths[i]))
-          ..size = Vector2(iconW, iconH)
-          ..position = Vector2(ix, iconY));
-        ix += iconW + iconGap;
-      }
-
-      slot.add(_TappableSlot(
-        slotSize: Vector2(slotW, slotH),
-        gameRef: this,
-      )..size = Vector2(slotW, slotH));
+    if (_filterCategory == cat) {
+      _filterCategory = null;
+    } else {
+      _filterCategory = cat;
     }
-
-    add(slot);
+    _loadPlantSlots();
   }
+
+  void applyStageFilter(String? stage) {
+
+    if (_filterStage == stage) {
+      _filterStage = null;
+    } else {
+      _filterStage = stage;
+    }
+    _loadPlantSlots();
+  }
+
+  void applyUrgencyFilter(String? urgency) {
+
+    if (_filterUrgency == urgency) {
+      _filterUrgency = null;
+    } else {
+      _filterUrgency = urgency;
+    }
+    _loadPlantSlots();
+  }
+
 
   // ── Scroll vertical ───────────────────────────────────
   @override
@@ -643,10 +707,18 @@ class _ExpandedOverlay extends PositionComponent with TapCallbacks {
     final double iconY = panelY + panelSize - iconH - panelSize * 0.13;
     const double gap = 8.0;
 
+    final fase = plant.estado?.fase ?? 'arbusto';
+    final recursos = plant.recursosAplicados;
+    final sol = recursos.sol;
+    final agua = recursos.agua;
+    final categoryIcon = (gameRef as InventoryScreen)._getCategoryIconPath(lowerId);
+    final stageIcon = (gameRef as InventoryScreen)._getStageIconPath(fase);
+    final trafficLightIcon = (gameRef as InventoryScreen)._getTrafficLightIconPath(sol, agua);
+
     final iconPaths = [
-      'Botones/Boton_Categoría_01.png',
-      'Botones/Boton_Estado_02.png',
-      'Iconos/Icono_Semaforo_01.png',
+      categoryIcon,
+      stageIcon,
+      trafficLightIcon,
     ];
 
     final List<double> iconWidths = iconPaths.map((path) {
