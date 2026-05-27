@@ -108,6 +108,23 @@ class PlantController extends ChangeNotifier {
     return _minResourcesByPhase[fase] ?? {'sol': 1, 'agua': 1, 'fertilizante': 0};
   }
 
+  /// Returns the maximum resources a plant can hold in its current phase
+  /// (equal to the evolution threshold, or null if dead/unknown).
+  /// ENT phase uses 'planta' values since there is no further evolution.
+  Map<String, int>? _getMaxResourcesForPlant(TreePlanta plant) {
+    final fase = plant.estado.fase;
+    if (fase == 'muerto') return null;
+    final plantType = _getPlantType(plant.id);
+    final faseKey = fase == 'ent' ? 'planta' : fase;
+    final faseReqs = _evolutionRequirements[plantType]?[faseKey];
+    if (faseReqs == null) return null;
+    return {
+      'sol': faseReqs['sun'] ?? 10,
+      'agua': faseReqs['water'] ?? 10,
+      'fertilizante': _fertilizerRequirements[faseKey] ?? 8,
+    };
+  }
+
   // ── Clasificación de plantas por nombre de carpeta ───────────────────────────
   // Mapea nombres de carpetas de Unity al tipo de planta
   static String _getPlantType(String folderName) {
@@ -480,6 +497,16 @@ class PlantController extends ChangeNotifier {
       return false;
     }
 
+    // Guard 3: Check plant capacity cap
+    final _plantForCapCheck = activePlant;
+    if (_plantForCapCheck != null) {
+      final maxRes = _getMaxResourcesForPlant(_plantForCapCheck);
+      if (maxRes != null && _plantForCapCheck.recursosAplicados.sol >= (maxRes['sol'] ?? 9999)) {
+        debugPrint('[PlantController] ⚠️ spendSun blocked: plant already at max sol (${_plantForCapCheck.recursosAplicados.sol}/${maxRes['sol']})');
+        return false;
+      }
+    }
+
     // Deduct from inventory
     _currentTree!.recursos.sol.cantidad -= amount;
     _currentUser?.resources.sunAmount -= amount;
@@ -529,6 +556,16 @@ class PlantController extends ChangeNotifier {
       return false;
     }
 
+    // Guard 3: Check plant capacity cap
+    final _plantForCapCheck = activePlant;
+    if (_plantForCapCheck != null) {
+      final maxRes = _getMaxResourcesForPlant(_plantForCapCheck);
+      if (maxRes != null && _plantForCapCheck.recursosAplicados.agua >= (maxRes['agua'] ?? 9999)) {
+        debugPrint('[PlantController] ⚠️ spendWater blocked: plant already at max agua (${_plantForCapCheck.recursosAplicados.agua}/${maxRes['agua']})');
+        return false;
+      }
+    }
+
     _currentTree!.recursos.agua.cantidad -= amount;
     _currentUser?.resources.waterAmount -= amount;
 
@@ -575,6 +612,16 @@ class PlantController extends ChangeNotifier {
     if (_currentTree!.recursos.fertilizante.cantidad < amount) {
       debugPrint('[PlantController] ⚠️ Cannot spend compost: insufficient stock (have ${_currentTree!.recursos.fertilizante.cantidad}, need $amount)');
       return false;
+    }
+
+    // Guard 3: Check plant capacity cap
+    final _plantForCapCheck = activePlant;
+    if (_plantForCapCheck != null) {
+      final maxRes = _getMaxResourcesForPlant(_plantForCapCheck);
+      if (maxRes != null && _plantForCapCheck.recursosAplicados.fertilizante >= (maxRes['fertilizante'] ?? 9999)) {
+        debugPrint('[PlantController] ⚠️ spendCompost blocked: plant already at max fertilizante (${_plantForCapCheck.recursosAplicados.fertilizante}/${maxRes['fertilizante']})');
+        return false;
+      }
     }
 
     _currentTree!.recursos.fertilizante.cantidad -= amount;
