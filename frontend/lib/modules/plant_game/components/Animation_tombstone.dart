@@ -6,7 +6,7 @@ class Animation_tombstone extends SpriteAnimationComponent {
   Animation_tombstone(this.plantType, Vector2 position)
       : super(
           position: position,
-          size: Vector2(300, 300),
+          size: Vector2(150, 150),
         );
 
   @override
