@@ -51,6 +51,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/modules/plant_game/plant_controller.dart';
+import 'package:frontend/models/tree_models.dart';
 
 class PlantGameScreen extends FlameGame {
   final BuildContext context;
